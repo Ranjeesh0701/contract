@@ -1,0 +1,16 @@
+[package]
+name = "sync"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ir = { path = "../ir" }
+diff = { path = "../diff" }
+codegen = { path = "../codegen" }
+parser = { path = "../parser" }
+adapter-openapi = { path = "../adapter-openapi" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
