@@ -1,0 +1,57 @@
+{
+  "name": "UserServiceContract",
+  "version": "1.0.0",
+  "description": "User account management contract",
+  "types": [
+    {
+      "type_kind": "Enum",
+      "name": "UserRole",
+      "description": "System access roles",
+      "variants": [
+        { "name": "Admin", "description": "Full system administrator" },
+        { "name": "Member", "description": "Regular user" }
+      ]
+    },
+    {
+      "type_kind": "Record",
+      "name": "User",
+      "description": "User entity profile",
+      "fields": [
+        {
+          "name": "id",
+          "field_type": { "kind": "Int64" },
+          "description": "Unique identifier"
+        },
+        {
+          "name": "email",
+          "field_type": { "kind": "String" },
+          "description": "Primary email"
+        },
+        {
+          "name": "role",
+          "field_type": { "kind": "Reference", "value": "UserRole" },
+          "description": null
+        },
+        {
+          "name": "bio",
+          "field_type": { "kind": "Optional", "value": { "kind": "String" } },
+          "description": "User biography"
+        }
+      ]
+    }
+  ],
+  "services": [
+    {
+      "name": "UserService",
+      "description": "Operations on users",
+      "operations": [
+        {
+          "name": "GetUser",
+          "input": { "kind": "Int64" },
+          "output": { "kind": "Reference", "value": "User" },
+          "description": "Fetches a user profile by ID"
+        }
+      ]
+    }
+  ]
+}

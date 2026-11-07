@@ -1,0 +1,17 @@
+[project]
+name = "storefront-web"
+version = "0.1.0"
+
+[dependencies]
+store = { path = "../schema.contract" }
+pets = { path = "../petstore.json" }
+
+[[generate]]
+contract = "store"
+lang = "ts"
+out = "src/api/store.ts"
+
+[[generate]]
+contract = "pets"
+lang = "ts"
+out = "src/api/pets.ts"

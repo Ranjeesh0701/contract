@@ -1,0 +1,41 @@
+contract ECommerceApi {
+    version: "1.0.0"
+    description: "Online storefront service contract"
+}
+
+enum OrderStatus {
+    Pending,
+    Paid,
+    Shipped,
+    Delivered,
+    Cancelled
+}
+
+model Address {
+    street: String
+    city: String
+    country: String
+    postalCode: String
+}
+
+model User {
+    id: Int64
+    name: String
+    email: String
+    shippingAddress: Address?
+    tags: String[]
+}
+
+model Order {
+    id: String
+    userId: Int64
+    status: OrderStatus
+    items: String[]
+    totalAmount: Float64
+    notes: String?
+}
+
+service OrderService {
+    getOrder(String): Order
+    createOrder(Order): Order
+}

@@ -1,0 +1,351 @@
+{
+  "version": 1,
+  "contracts": {
+    "pets": {
+      "source": "path:../petstore.json",
+      "sha256": "18027e7518034a92067dbe5442fecaf418d87cab27f52d65a4a7596c2929fa67",
+      "name": "PetstoreApi",
+      "version": "1.0.0",
+      "contract": {
+        "name": "PetstoreApi",
+        "version": "1.0.0",
+        "description": "Swagger Petstore API",
+        "types": [
+          {
+            "type_kind": "Record",
+            "name": "NewPet",
+            "fields": [
+              {
+                "name": "name",
+                "field_type": {
+                  "kind": "String"
+                },
+                "description": null
+              },
+              {
+                "name": "status",
+                "field_type": {
+                  "kind": "Reference",
+                  "value": "PetStatus"
+                },
+                "description": null
+              },
+              {
+                "name": "tag",
+                "field_type": {
+                  "kind": "Optional",
+                  "value": {
+                    "kind": "String"
+                  }
+                },
+                "description": null
+              }
+            ],
+            "description": null
+          },
+          {
+            "type_kind": "Record",
+            "name": "Pet",
+            "fields": [
+              {
+                "name": "id",
+                "field_type": {
+                  "kind": "Int64"
+                },
+                "description": null
+              },
+              {
+                "name": "name",
+                "field_type": {
+                  "kind": "String"
+                },
+                "description": null
+              },
+              {
+                "name": "status",
+                "field_type": {
+                  "kind": "Reference",
+                  "value": "PetStatus"
+                },
+                "description": null
+              },
+              {
+                "name": "tag",
+                "field_type": {
+                  "kind": "Optional",
+                  "value": {
+                    "kind": "String"
+                  }
+                },
+                "description": null
+              }
+            ],
+            "description": null
+          },
+          {
+            "type_kind": "Enum",
+            "name": "PetStatus",
+            "variants": [
+              {
+                "name": "Available",
+                "description": null
+              },
+              {
+                "name": "Pending",
+                "description": null
+              },
+              {
+                "name": "Adopted",
+                "description": null
+              }
+            ],
+            "description": null
+          }
+        ],
+        "services": [
+          {
+            "name": "PetstoreApiApi",
+            "operations": [
+              {
+                "name": "listPets",
+                "input": null,
+                "output": {
+                  "kind": "List",
+                  "value": {
+                    "kind": "Reference",
+                    "value": "Pet"
+                  }
+                },
+                "description": null
+              },
+              {
+                "name": "createPet",
+                "input": {
+                  "kind": "Reference",
+                  "value": "NewPet"
+                },
+                "output": {
+                  "kind": "Reference",
+                  "value": "Pet"
+                },
+                "description": null
+              }
+            ],
+            "description": "API service operations extracted from OpenAPI"
+          }
+        ]
+      }
+    },
+    "store": {
+      "source": "path:../schema.contract",
+      "sha256": "ea204abdd73c92b15558603d3e1ba92ee2ec9e7f309c3f7af45ce569ad5b9936",
+      "name": "ECommerceApi",
+      "version": "1.0.0",
+      "contract": {
+        "name": "ECommerceApi",
+        "version": "1.0.0",
+        "description": "Online storefront service contract",
+        "types": [
+          {
+            "type_kind": "Enum",
+            "name": "OrderStatus",
+            "variants": [
+              {
+                "name": "Pending",
+                "description": null
+              },
+              {
+                "name": "Paid",
+                "description": null
+              },
+              {
+                "name": "Shipped",
+                "description": null
+              },
+              {
+                "name": "Delivered",
+                "description": null
+              },
+              {
+                "name": "Cancelled",
+                "description": null
+              }
+            ],
+            "description": null
+          },
+          {
+            "type_kind": "Record",
+            "name": "Address",
+            "fields": [
+              {
+                "name": "street",
+                "field_type": {
+                  "kind": "String"
+                },
+                "description": null
+              },
+              {
+                "name": "city",
+                "field_type": {
+                  "kind": "String"
+                },
+                "description": null
+              },
+              {
+                "name": "country",
+                "field_type": {
+                  "kind": "String"
+                },
+                "description": null
+              },
+              {
+                "name": "postalCode",
+                "field_type": {
+                  "kind": "String"
+                },
+                "description": null
+              }
+            ],
+            "description": null
+          },
+          {
+            "type_kind": "Record",
+            "name": "User",
+            "fields": [
+              {
+                "name": "id",
+                "field_type": {
+                  "kind": "Int64"
+                },
+                "description": null
+              },
+              {
+                "name": "name",
+                "field_type": {
+                  "kind": "String"
+                },
+                "description": null
+              },
+              {
+                "name": "email",
+                "field_type": {
+                  "kind": "String"
+                },
+                "description": null
+              },
+              {
+                "name": "shippingAddress",
+                "field_type": {
+                  "kind": "Optional",
+                  "value": {
+                    "kind": "Reference",
+                    "value": "Address"
+                  }
+                },
+                "description": null
+              },
+              {
+                "name": "tags",
+                "field_type": {
+                  "kind": "List",
+                  "value": {
+                    "kind": "String"
+                  }
+                },
+                "description": null
+              }
+            ],
+            "description": null
+          },
+          {
+            "type_kind": "Record",
+            "name": "Order",
+            "fields": [
+              {
+                "name": "id",
+                "field_type": {
+                  "kind": "String"
+                },
+                "description": null
+              },
+              {
+                "name": "userId",
+                "field_type": {
+                  "kind": "Int64"
+                },
+                "description": null
+              },
+              {
+                "name": "status",
+                "field_type": {
+                  "kind": "Reference",
+                  "value": "OrderStatus"
+                },
+                "description": null
+              },
+              {
+                "name": "items",
+                "field_type": {
+                  "kind": "List",
+                  "value": {
+                    "kind": "String"
+                  }
+                },
+                "description": null
+              },
+              {
+                "name": "totalAmount",
+                "field_type": {
+                  "kind": "Float64"
+                },
+                "description": null
+              },
+              {
+                "name": "notes",
+                "field_type": {
+                  "kind": "Optional",
+                  "value": {
+                    "kind": "String"
+                  }
+                },
+                "description": null
+              }
+            ],
+            "description": null
+          }
+        ],
+        "services": [
+          {
+            "name": "OrderService",
+            "operations": [
+              {
+                "name": "getOrder",
+                "input": {
+                  "kind": "String"
+                },
+                "output": {
+                  "kind": "Reference",
+                  "value": "Order"
+                },
+                "description": null
+              },
+              {
+                "name": "createOrder",
+                "input": {
+                  "kind": "Reference",
+                  "value": "Order"
+                },
+                "output": {
+                  "kind": "Reference",
+                  "value": "Order"
+                },
+                "description": null
+              }
+            ],
+            "description": null
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+[package]
+name = "contract-cli"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "contract"
+path = "src/main.rs"
+
+[dependencies]
+ir = { path = "../ir" }
+diff = { path = "../diff" }
+codegen = { path = "../codegen" }
+parser = { path = "../parser" }
+adapter-openapi = { path = "../adapter-openapi" }
+sync = { path = "../sync" }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
