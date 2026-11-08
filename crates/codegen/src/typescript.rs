@@ -144,6 +144,9 @@ impl TypeScriptGenerator {
             if idx > 0 {
                 out.push('\n');
             }
+            if let Some(ref desc) = op.description {
+                out.push_str(&format!("  /**\n   * {}\n   */\n", desc));
+            }
             let method_name = Self::to_camel_case(&op.name);
             let has_input = op.input.is_some();
             let input_param = if has_input {

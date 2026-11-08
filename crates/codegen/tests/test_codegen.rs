@@ -1,4 +1,4 @@
-use codegen::{RustGenerator, TypeScriptGenerator};
+use codegen::{PythonGenerator, RustGenerator, TypeScriptGenerator};
 use ir::{
     Contract, EnumType, EnumVariant, Field, Operation, Record, Service, Type, TypeDefinition,
 };
@@ -83,4 +83,20 @@ fn test_rust_codegen() {
     assert!(rust_code.contains("#[serde(rename = \"orderId\")]"));
     assert!(rust_code.contains("pub order_id: String,"));
     assert!(rust_code.contains("pub notes: Option<String>,"));
+}
+
+#[test]
+fn test_python_codegen() {
+    let contract = sample_contract();
+    let py_code = PythonGenerator::generate(&contract);
+
+    assert!(py_code.contains("class OrderStatus(str, Enum):"));
+    assert!(py_code.contains("Pending = \"Pending\""));
+    assert!(py_code.contains("class Order(BaseModel):"));
+    assert!(py_code.contains("order_id: str = Field(alias=\"orderId\", description=\"Unique identifier\")"));
+    assert!(py_code.contains("notes: Optional[str] = Field(default=None)"));
+    assert!(py_code.contains("class OrderService(ABC):"));
+    assert!(py_code.contains("def get_order(self, input: str) -> Order:"));
+    assert!(py_code.contains("class OrderServiceClient(OrderService):"));
+    assert!(py_code.contains("class ShopContractClient:"));
 }

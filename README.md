@@ -36,7 +36,7 @@ In modern architectures (microservices, mobile apps, frontend/backend splits), c
 - 📜 **Prisma-Like Schema DSL (`.contract`)**: Human-readable syntax for models, enums, optionality, lists, maps, and services.
 - 🔄 **Universal Interoperability**: Ingest OpenAPI 3.0 / Swagger specs or export clean `.contract` schemas with zero configuration.
 - 🛡️ **Semantic Breaking-Change Detector**: Automatically classifies changes into `[SAFE]`, `[WARNING]`, or `[BREAKING]` to prevent API regressions in CI/CD.
-- 🚀 **Executable Client SDK Generation**: Emits ready-to-use, type-safe TypeScript `fetch` clients and Rust `serde` structs with JSDoc/rustdoc comments.
+- 🚀 **Executable Client SDK Generation**: Emits ready-to-use, type-safe TypeScript `fetch` clients, Python Pydantic models & clients, and Rust `serde` structs with native doc comments.
 - 🔒 **Cross-Repo Synchronization & Lockfiles**: Track upstream contract dependencies via `contract.toml`, pin them with cryptographic SHA-256 hashes in `contract.lock`, and detect drift.
 
 ---
@@ -50,7 +50,7 @@ Built as a modular, high-performance Rust virtual workspace:
 | **[`crates/ir`](crates/ir)** | Canonical AST, types (`Record`, `EnumType`, `Service`), and two-pass semantic validator. |
 | **[`crates/parser`](crates/parser)** | Zero-dependency tokenizer, parser, and schema emitter for `.contract` files. |
 | **[`crates/diff`](crates/diff)** | Semantic diffing engine for breaking change detection. |
-| **[`crates/codegen`](crates/codegen)** | Multi-language code generator (TypeScript Fetch Client SDK & Rust structs). |
+| **[`crates/codegen`](crates/codegen)** | Multi-language code generator (TypeScript Fetch Client SDK, Python Pydantic models & clients, Rust structs). |
 | **[`crates/adapters`](crates/adapters)** | Pluggable schema adapter interface and ingestion pipelines (OpenAPI 3.0, Swagger, Protobuf, etc.). |
 | **[`crates/sync`](crates/sync)** | Dependency tracker (`contract.toml`), lockfile manager (`contract.lock`), and drift engine. |
 | **[`crates/cli`](crates/cli)** | Unified command-line interface (`contract`). |
