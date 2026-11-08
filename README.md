@@ -34,19 +34,32 @@ In modern distributed systems and AI-assisted workflows, APIs drift constantly:
 
 ## Installation
 
-Install directly via Cargo:
+### Option 1: Quick Install (curl / PowerShell)
+
+**macOS & Linux**:
+```bash
+curl -fsSL https://raw.githubusercontent.com/Ranjeesh0701/contract/main/scripts/install.sh | sh
+```
+
+**Windows (PowerShell)**:
+```powershell
+irm https://raw.githubusercontent.com/Ranjeesh0701/contract/main/scripts/install.ps1 | iex
+```
+
+### Option 2: Cargo (Crates.io)
 
 ```bash
 cargo install contract
 ```
 
-Or build from source:
+### Option 3: Pre-built Binaries (GitHub Releases)
 
-```bash
-git clone https://github.com/Ranjeesh0701/contract.git
-cd contract
-cargo install --path .
-```
+Download standalone zero-dependency binaries directly from [GitHub Releases](https://github.com/Ranjeesh0701/contract/releases):
+
+* **Linux x64**: `contract-linux-x64.tar.gz`
+* **macOS Apple Silicon (arm64)**: `contract-darwin-arm64.tar.gz`
+* **macOS Intel (x64)**: `contract-darwin-x64.tar.gz`
+* **Windows x64**: `contract-windows-x64.zip`
 
 Verify the installation:
 
