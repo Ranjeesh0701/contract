@@ -1,39 +1,40 @@
-# Contract ⚡
+# Contract
 
+**Define once. Synchronize everywhere. Zero API drift.**
+
+[![Built with Rust](https://img.shields.io/badge/built_with-Rust-dca282.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![Crates.io](https://img.shields.io/crates/v/contract.svg)](https://crates.io/crates/contract)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-2024%20edition-orange.svg)](https://www.rust-lang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/Ranjeesh0701/contract?include_prereleases&color=55d6a2)](https://github.com/Ranjeesh0701/contract/releases)
 
-> **The universal API contract language and zero-drift synchronization engine.**
+Contract is a high-performance API contract platform and zero-drift synchronization engine built in 100% native Rust. It connects services, frontend apps, and autonomous AI agents through a single, deterministic source of truth—eliminating runtime type errors, broken integrations, and token-wasting AI debugging loops.
 
-`contract` synchronizes API schemas, types, and clients across independent repositories—giving you compile-time safety, automated polyglot SDK generation, and zero runtime surprises across frontend, backend, and AI agents.
+> **Project status:** v0.1.0 (Active development).
 
 ---
 
-## Why Contract?
+## What Contract Solves
 
-In modern distributed systems and AI-assisted workflows, APIs drift constantly:
+In modern architectures (microservices, mobile apps, frontend/backend splits) and multi-agent AI environments, API schemas drift silently:
 
-* 💥 A backend engineer or AI agent updates a field name or enum variant.
-* 💔 Downstream frontends, mobile apps, and microservices break in production.
-* 🔄 Multi-agent swarms burn context and tokens trapped in "guess payload → break build → fix" loops.
+* 💥 A backend engineer or AI agent changes a field type, renames a property, or drops an enum variant.
+* 💔 Downstream apps and services break in production at runtime.
+* 🔄 Autonomous AI agents get trapped in expensive trial-and-error loops—guessing payload shapes, breaking builds, and burning context tokens attempting to self-repair.
 
-**Contract solves this at the root:**
+### Contract provides:
 
-| Feature | What it does | Why it matters |
-| :--- | :--- | :--- |
-| **Clean DSL (`.contract`)** | Human & AI-readable schema language | Simple, expressive, zero boilerplate |
-| **Instant Polyglot Codegen** | Emits TypeScript, Python (Pydantic v2), Go, & Rust | Type-safe clients without manual glue code |
-| **Universal Adapters** | Ingests OpenAPI 3.0, Protobuf, GraphQL, & JSON Schema | Works with your existing schemas out of the box |
-| **Semantic Diffing** | Flags breaking changes (`[SAFE]` vs `[BREAKING]`) | Non-negotiable safety gate for CI/CD |
-| **Zero-Drift Sync** | Tracks upstream contracts via `contract.toml` & `contract.lock` | Cryptographically pins APIs using SHA-256 |
-| **AI-Agent Coordination** | Single source of truth across repo boundaries | Multi-agent swarms build features instead of guessing payloads |
+1. **Declarative Schema DSL (`.contract`)**: Clean, human- and machine-readable schema language for records, enums, type aliases, and RPC services with zero boilerplate.
+2. **Instant Polyglot Codegen**: Compiles schemas directly into idiomatic **TypeScript** (Fetch SDK & types), **Python** (Pydantic v2 models & client), **Go** (structs & `net/http` client), and **Rust** (`serde` types).
+3. **Semantic Breaking-Change Detector (`contract diff`)**: Inspects schemas AST-to-AST and classifies changes into `[SAFE]` and `[BREAKING]` for CI/CD gates.
+4. **Cryptographic Synchronization (`contract sync`)**: Track upstream service contracts via `contract.toml` and lock their exact SHA-256 hashes in `contract.lock`.
+5. **Universal Schema Adapters**: Ingests and converts **OpenAPI 3.0 / Swagger**, **Protocol Buffers (`.proto`)**, **JSON Schema**, and **GraphQL SDL (`.graphql`)** without third-party tools.
+6. **AI-Agent Deterministic Protocol**: Acts as the shared contract layer for AI coding swarms (Cursor, Claude, Codex, Gemini), replacing payload guesswork with compile-time certainty.
 
 ---
 
 ## Installation
 
-### Option 1: Quick Install (curl / PowerShell)
+### Option 1: Quick Install (Recommended)
 
 **macOS & Linux**:
 ```bash
@@ -45,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/Ranjeesh0701/contract/main/scripts/
 irm https://raw.githubusercontent.com/Ranjeesh0701/contract/main/scripts/install.ps1 | iex
 ```
 
-### Option 2: Cargo (Crates.io)
+### Option 2: Cargo
 
 ```bash
 cargo install contract
@@ -53,24 +54,25 @@ cargo install contract
 
 ### Option 3: Pre-built Binaries (GitHub Releases)
 
-Download standalone zero-dependency binaries directly from [GitHub Releases](https://github.com/Ranjeesh0701/contract/releases):
+Download pre-compiled binaries for your platform from [GitHub Releases](https://github.com/Ranjeesh0701/contract/releases):
 
 * **Linux x64**: `contract-linux-x64.tar.gz`
-* **macOS Apple Silicon (arm64)**: `contract-darwin-arm64.tar.gz`
-* **macOS Intel (x64)**: `contract-darwin-x64.tar.gz`
+* **macOS Apple Silicon**: `contract-darwin-arm64.tar.gz`
+* **macOS Intel**: `contract-darwin-x64.tar.gz`
 * **Windows x64**: `contract-windows-x64.zip`
 
-Verify the installation:
+Extract and move the binary to any directory in your `PATH` (e.g., `/usr/local/bin`).
 
+Verify the installation:
 ```bash
 contract --help
 ```
 
 ---
 
-## 60-Second Quickstart
+## Quick Start
 
-### 1. Define your Contract (`schema.contract`)
+### 1. Define your Contract (`api.contract`)
 
 ```text
 contract StorefrontApi {
@@ -98,39 +100,35 @@ service OrderService {
 }
 ```
 
-### 2. Validate Syntactic & Semantic Integrity
+### 2. Validate & Generate Client SDKs
 
+Validate schema syntax and references:
 ```bash
-contract check schema.contract
-# ✔ Contract 'StorefrontApi' (1.0.0) is valid: 2 types, 1 service, 2 operations.
+contract check api.contract
 ```
 
-### 3. Generate Type-Safe Clients
-
-Generate SDKs in any supported language with a single command:
+Generate type-safe client libraries with a single command:
 
 ```bash
 # TypeScript Fetch Client & Types
-contract generate -i schema.contract -l ts -o client.ts
+contract generate -i api.contract -l ts -o client.ts
 
-# Python Pydantic v2 Models & API Client
-contract generate -i schema.contract -l python -o client.py
+# Python Pydantic v2 Models & Client
+contract generate -i api.contract -l python -o client.py
 
 # Go Structs & net/http Client
-contract generate -i schema.contract -l go -o client.go
+contract generate -i api.contract -l go -o client.go
 
-# Rust Serde Structs
-contract generate -i schema.contract -l rust -o types.rs
+# Rust Serde Types
+contract generate -i api.contract -l rust -o types.rs
 ```
 
----
+### 3. Catch Breaking Changes in CI
 
-## Catch Breaking Changes in CI
-
-Never ship a broken API change again. `contract diff` semantically inspects schemas and flags breaking changes:
+Prevent broken APIs from ever reaching production:
 
 ```bash
-contract diff v1.contract v2.contract
+contract diff v1.contract v2.contract --fail-on-breaking
 ```
 
 ```text
@@ -143,38 +141,51 @@ Summary: 2 breaking change(s), 1 safe change(s)
 Error: Breaking changes detected in contract!
 ```
 
-Add it to your CI pipeline:
-
-```bash
-contract diff upstream/main.contract current.contract --fail-on-breaking
-```
-
 ---
 
-## Built for Multi-Agent AI Development
+## Cross-Repository Synchronization
 
-When multiple AI agents work across different repos (e.g., one on backend, one on frontend):
+Coordinate contracts across independent service repositories with zero drift:
 
-```text
-Without Contract (Wasteful Loop):
-[Backend Agent] ──► Changes API ──► [Frontend Agent Guesses] ──► [Build Breaks] ──► [Debug & Fix Loop]
+### 1. Declare dependencies (`contract.toml`)
 
-With Contract (Deterministic):
-[Backend Agent] ──► Updates .contract ──► `contract sync` ──► [Frontend Agent]
-                           │                                         │
-                           ▼                                         ▼
-                 Single Source of Truth                   100% Typed / Zero Guesswork
+```toml
+[dependencies]
+billing = { path = "../services/billing/api.contract" }
+auth    = { path = "../services/auth/api.contract" }
+
+[[generate]]
+contract = "billing"
+lang = "typescript"
+output = "src/sdk/billing.ts"
+
+[[generate]]
+contract = "auth"
+lang = "python"
+output = "clients/auth.py"
 ```
 
-- **Zero Guesswork**: The frontend agent consumes the automatically generated SDK directly.
-- **Token Efficiency**: Agents share concise `.contract` files instead of dumping thousand-line backend implementations into context windows.
-- **Machine-Actionable Diff**: Agents receive structured diagnostics (`[BREAKING] field totalAmount: Float64 -> String`) to guide self-healing refactors.
+### 2. Sync and lock
+
+```bash
+contract sync
+```
+
+Validates upstream contracts, detects breaking changes, updates `contract.lock` with cryptographic hashes, and regenerates local client SDKs.
+
+### 3. Verify zero drift in CI
+
+```bash
+contract drift
+```
+
+Exits with a non-zero code if local SDKs have drifted from upstream definitions.
 
 ---
 
 ## Ingest Existing Schemas
 
-Already have OpenAPI, Protobuf, GraphQL, or JSON Schema? Import them directly into `.contract` DSL:
+Already have schemas? Import them into `.contract` format instantly:
 
 ```bash
 # OpenAPI / Swagger
@@ -183,7 +194,7 @@ contract import swagger.json -o api.contract
 # Protocol Buffers (.proto)
 contract import service.proto -o api.contract
 
-# GraphQL SDL
+# GraphQL SDL (.graphql)
 contract import schema.graphql -o api.contract
 
 # JSON Schema
@@ -192,60 +203,22 @@ contract import schema.json -o api.contract
 
 ---
 
-## Cross-Repo Synchronization (`contract.toml`)
-
-Manage external contract dependencies just like Cargo or npm dependencies.
-
-1. Create a `contract.toml` in your project root:
-
-```toml
-[dependencies]
-billing = { path = "../services/billing/schema.contract" }
-users   = { path = "../services/users/schema.contract" }
-
-[[generate]]
-contract = "billing"
-lang = "typescript"
-output = "src/sdk/billing.ts"
-
-[[generate]]
-contract = "users"
-lang = "python"
-output = "clients/users.py"
-```
-
-2. Run `contract sync`:
-
-```bash
-contract sync
-```
-
-This validates upstream contracts, detects breaking changes, updates `contract.lock` with SHA-256 hashes, and regenerates client code.
-
-3. Verify zero drift in CI:
-
-```bash
-contract drift
-```
-
----
-
 ## CLI Reference
 
 | Command | Usage | Description |
-| :--- | :--- | :--- |
-| **`check`** | `contract check <file>` | Validates schema syntax and referential integrity |
-| **`diff`** | `contract diff <old> <new>` | Detects and flags breaking changes |
-| **`generate`** | `contract generate -i <file> -l <ts\|python\|go\|rust> [-o <out>]` | Emits idiomatic client SDKs or model code |
-| **`import`** | `contract import <file> [-o <out.contract>]` | Ingests OpenAPI, Protobuf, GraphQL, or JSON Schema |
-| **`sync`** | `contract sync [--force]` | Synchronizes `contract.toml` and updates `contract.lock` |
-| **`drift`** | `contract drift` | Verifies local lockfile matches upstream contracts |
+|---|---|---|
+| `contract check` | `contract check <file>` | Validate schema syntax, type references, and semantics |
+| `contract diff` | `contract diff <old> <new>` | Compare two contract versions and flag breaking changes |
+| `contract generate` | `contract generate -i <file> -l <lang> [-o <out>]` | Emit typed SDKs (`ts`, `python`, `go`, `rust`) |
+| `contract import` | `contract import <file> [-o <out>]` | Ingest OpenAPI, Protobuf, GraphQL, or JSON Schema |
+| `contract sync` | `contract sync [--force]` | Synchronize `contract.toml` dependencies and update lockfile |
+| `contract drift` | `contract drift` | Check whether local lockfile matches upstream contracts |
 
 ---
 
 ## Using as a Rust Library
 
-Embed `contract` directly into your custom Rust tooling:
+Embed Contract directly into your custom developer tooling or CI pipelines:
 
 ```toml
 [dependencies]
@@ -258,15 +231,36 @@ use contract::diff::diff;
 use contract::codegen::TypeScriptGenerator;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let contract_ast = parse("contract App { model User { id: String } }")?;
-    let ts_client = TypeScriptGenerator::generate(&contract_ast)?;
-    println!("{}", ts_client);
+    let old_ast = parse("contract Api { model User { id: String } }")?;
+    let new_ast = parse("contract Api { model User { id: Int64 } }")?;
+
+    let report = diff(&old_ast, &new_ast);
+    if report.has_breaking_changes() {
+        eprintln!("Breaking changes detected: {:?}", report.breaking_changes());
+    }
+
+    let ts_sdk = TypeScriptGenerator::generate(&new_ast)?;
+    println!("{}", ts_sdk);
     Ok(())
 }
 ```
 
 ---
 
+## Contributing
+
+Contributions, issues, and feature requests are welcome.
+
+1. Fork the repository and create a feature branch.
+2. Run `cargo test` to ensure all unit and integration tests pass.
+3. Open a Pull Request with a clear summary of your changes.
+
+---
+
 ## License
 
-MIT License — Copyright (c) 2026 Ranjeesh. See [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+**Contract — Define once. Synchronize everywhere. Zero API drift.**
