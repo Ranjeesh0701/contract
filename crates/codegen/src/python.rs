@@ -144,7 +144,10 @@ impl PythonGenerator {
                     method_name, input_param, output_type
                 ));
                 if let Some(ref desc) = op.description {
-                    out.push_str(&format!("        \"\"\"\n        {}\n        \"\"\"\n", desc));
+                    out.push_str(&format!(
+                        "        \"\"\"\n        {}\n        \"\"\"\n",
+                        desc
+                    ));
                 }
                 out.push_str("        pass\n\n");
             }
@@ -163,7 +166,10 @@ impl PythonGenerator {
             let method_name = Self::to_snake_case(&op.name);
             let has_input = op.input.is_some();
             let input_param = if has_input {
-                format!(", input: {}", Self::type_to_python(op.input.as_ref().unwrap()))
+                format!(
+                    ", input: {}",
+                    Self::type_to_python(op.input.as_ref().unwrap())
+                )
             } else {
                 "".to_string()
             };
@@ -177,7 +183,10 @@ impl PythonGenerator {
                 method_name, input_param, output_type
             ));
             if let Some(ref desc) = op.description {
-                out.push_str(&format!("        \"\"\"\n        {}\n        \"\"\"\n", desc));
+                out.push_str(&format!(
+                    "        \"\"\"\n        {}\n        \"\"\"\n",
+                    desc
+                ));
             }
             out.push_str(&format!(
                 "        url = f\"{{self.base_url}}/{}/{}\"\n",

@@ -15,3 +15,13 @@ out = "src/api/store.ts"
 contract = "pets"
 lang = "ts"
 out = "src/api/pets.ts"
+
+[[generate]]
+contract = "store"
+lang = "python"
+out = "src/api/store.py"
+
+[[generate]]
+contract = "pets"
+lang = "python"
+out = "src/api/pets.py"

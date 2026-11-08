@@ -150,6 +150,11 @@ Generate 100% strictly typed TypeScript clients:
 contract generate -i schema.contract -l ts -o src/api/client.ts
 ```
 
+Generate typed Python Pydantic models & clients:
+```bash
+contract generate -i schema.contract -l python -o src/api/client.py
+```
+
 Or strict Rust structs:
 ```bash
 contract generate -i schema.contract -l rust -o src/api/models.rs
@@ -164,6 +169,17 @@ const api = new ECommerceApiClient("https://api.store.com");
 // 100% typed autocompletion:
 const order = await api.orderService.getOrder("order-123");
 console.log(order.totalAmount);
+```
+
+#### Python Client Example:
+```python
+from api.client import ECommerceApiClient
+
+client = ECommerceApiClient("https://api.store.com")
+
+# Fully typed Pydantic models & autocompletion:
+order = client.order_service.get_order("order-123")
+print(order.total_amount, order.status)
 ```
 
 ### Import Existing OpenAPI / Swagger
