@@ -17,6 +17,7 @@
 - [Client SDK Generation](#client-sdk-generation)
   - [TypeScript SDK](#typescript-sdk)
   - [Python SDK (Pydantic v2)](#python-sdk-pydantic-v2)
+  - [Go SDK (net/http)](#go-sdk-nethttp)
   - [Rust Types (Serde)](#rust-types-serde)
 - [Ingesting External Schemas (OpenAPI, Protobuf, GraphQL, JSON Schema)](#ingesting-external-schemas-openapi-protobuf-graphql-json-schema)
 - [Semantic Breaking-Change Detection (`diff`)](#semantic-breaking-change-detection-diff)
@@ -326,6 +327,38 @@ let order = Order {
     total_amount: 99.50,
     notes: None,
 };
+```
+
+### Go SDK (net/http)
+
+Generates Go `struct`s with `json:"..."` tags, `type Enum string` with `const` blocks, service interfaces, and `net/http` client structs:
+
+```bash
+contract generate -i schema.contract -l go -o client.go
+```
+
+**Using the generated Go client:**
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+
+	"myproject/client"
+)
+
+func main() {
+	api := client.NewECommerceAPIClient("https://api.store.com", nil)
+
+	order, err := api.OrderService.GetOrder(context.Background(), "order_123")
+	if err != nil {
+		log.Fatalf("failed to fetch order: %v", err)
+	}
+	fmt.Printf("Order ID: %s, Total: $%.2f\n", order.ID, order.TotalAmount)
+}
 ```
 
 ---

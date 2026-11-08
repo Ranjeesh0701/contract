@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use codegen::{PythonGenerator, RustGenerator, TypeScriptGenerator};
+use codegen::{GoGenerator, PythonGenerator, RustGenerator, TypeScriptGenerator};
 use diff::{DiffReport, diff};
 use ir::Contract;
 use sha2::{Digest, Sha256};
@@ -109,6 +109,7 @@ impl SyncEngine {
                 "ts" | "typescript" => TypeScriptGenerator::generate(&locked.contract),
                 "rs" | "rust" => RustGenerator::generate(&locked.contract),
                 "py" | "python" => PythonGenerator::generate(&locked.contract),
+                "go" | "golang" => GoGenerator::generate(&locked.contract),
                 other => return Err(SyncError::UnsupportedLanguage(other.to_string())),
             };
 

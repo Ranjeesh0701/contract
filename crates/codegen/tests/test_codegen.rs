@@ -1,4 +1,4 @@
-use codegen::{PythonGenerator, RustGenerator, TypeScriptGenerator};
+use codegen::{GoGenerator, PythonGenerator, RustGenerator, TypeScriptGenerator};
 use ir::{
     Contract, EnumType, EnumVariant, Field, Operation, Record, Service, Type, TypeDefinition,
 };
@@ -126,4 +126,20 @@ fn test_python_codegen_selective_imports() {
     assert!(!py_code.contains("from typing import Optional"));
     assert!(!py_code.contains("import urllib"));
     assert!(!py_code.contains("from abc import"));
+}
+
+#[test]
+fn test_go_codegen() {
+    let contract = sample_contract();
+    let go_code = GoGenerator::generate(&contract);
+
+    assert!(go_code.contains("type OrderStatus string"));
+    assert!(go_code.contains("OrderStatusPending OrderStatus = \"Pending\""));
+    assert!(go_code.contains("type Order struct {"));
+    assert!(go_code.contains("OrderID string `json:\"orderId\"`"));
+    assert!(go_code.contains("Notes *string `json:\"notes,omitempty\"`"));
+    assert!(go_code.contains("type OrderService interface {"));
+    assert!(go_code.contains("GetOrder(ctx context.Context, input string) (*Order, error)"));
+    assert!(go_code.contains("type OrderServiceClient struct {"));
+    assert!(go_code.contains("type ShopContractClient struct {"));
 }

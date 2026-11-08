@@ -25,3 +25,8 @@ out = "src/api/store.py"
 contract = "pets"
 lang = "python"
 out = "src/api/pets.py"
+
+[[generate]]
+contract = "store"
+lang = "go"
+out = "src/api/store.go"

@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process::exit;
 
 use clap::{Parser, Subcommand, ValueEnum};
-use codegen::{PythonGenerator, RustGenerator, TypeScriptGenerator};
+use codegen::{GoGenerator, PythonGenerator, RustGenerator, TypeScriptGenerator};
 use diff::{ChangeSeverity, diff};
 use ir::Contract;
 
@@ -26,6 +26,8 @@ enum TargetLang {
     Rust,
     #[value(name = "python", alias = "py")]
     Python,
+    #[value(name = "go", alias = "golang")]
+    Go,
 }
 
 #[derive(Subcommand)]
@@ -232,6 +234,7 @@ fn handle_generate(input: PathBuf, lang: TargetLang, output: Option<PathBuf>) {
         TargetLang::TypeScript => TypeScriptGenerator::generate(&contract),
         TargetLang::Rust => RustGenerator::generate(&contract),
         TargetLang::Python => PythonGenerator::generate(&contract),
+        TargetLang::Go => GoGenerator::generate(&contract),
     };
 
     match output {
