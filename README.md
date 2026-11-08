@@ -101,22 +101,18 @@ Contract-Powered AI Flow:
 - [Rust](https://www.rust-lang.org/) (2024 edition / 1.85+)
 - Cargo
 
-### 2. Build from Source
-
-Clone the repository and build the binary:
+### 2. Install from Crates.io
 
 ```bash
-git clone https://github.com/your-org/contract.git
-cd contract
-cargo build --release
+cargo install contract
 ```
 
-The compiled binary will be located at `target/release/contract`.
-
-### 3. Install Globally (Optional)
+### 3. Build from Source
 
 ```bash
-cargo install --path crates/cli
+git clone https://github.com/Ranjeesh0701/contract.git
+cd contract
+cargo install --path .
 ```
 
 Verify the installation:
@@ -520,19 +516,18 @@ Run 'contract sync' to update local locks and regenerate clients.
 
 ---
 
-## Repository Architecture
+## Architecture
 
-Built as a modular, high-performance Rust virtual workspace:
+Contract is organized as a unified, modular Rust crate providing both a CLI binary and a library API:
 
-| Crate                                    | Purpose                                                                                                                 |
-| :--------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
-| **[`crates/ir`](crates/ir)**             | Canonical AST, types (`Record`, `EnumType`, `Service`), and two-pass semantic validator.                                |
-| **[`crates/parser`](crates/parser)**     | Zero-dependency tokenizer, parser, and schema emitter for `.contract` files.                                            |
-| **[`crates/diff`](crates/diff)**         | Semantic diffing engine for breaking change detection.                                                                  |
-| **[`crates/codegen`](crates/codegen)**   | Multi-language code generator (TypeScript Fetch SDK, Python Pydantic models & clients, Rust structs).                   |
-| **[`crates/adapters`](crates/adapters)** | Pluggable schema adapter interface (`SchemaAdapter`, `AdapterRegistry`) supporting OpenAPI 3.0, Swagger, Protobuf, etc. |
-| **[`crates/sync`](crates/sync)**         | Dependency tracker (`contract.toml`), lockfile manager (`contract.lock`), and drift engine.                             |
-| **[`crates/cli`](crates/cli)**           | Unified command-line interface (`contract`).                                                                            |
+| Module | Purpose |
+| :--- | :--- |
+| **`contract::ir`** | Canonical AST, types (`Record`, `EnumType`, `Service`), and semantic validator. |
+| **`contract::parser`** | Zero-dependency tokenizer, parser, and schema emitter for `.contract` files. |
+| **`contract::diff`** | Semantic diffing engine for breaking change detection. |
+| **`contract::codegen`** | Multi-language code generator (TypeScript Fetch SDK, Python Pydantic models & clients, Go structs & HTTP clients, Rust serde types). |
+| **`contract::adapters`** | Pluggable schema adapters (`SchemaAdapter`, `AdapterRegistry`) supporting OpenAPI 3.0, Protobuf (`.proto`), JSON Schema, and GraphQL SDL (`.graphql`). |
+| **`contract::sync`** | Dependency tracker (`contract.toml`), lockfile manager (`contract.lock`), and drift engine. |
 
 ---
 
