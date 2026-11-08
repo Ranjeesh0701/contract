@@ -1,5 +1,9 @@
 # Contract ⚡
 
+[![Crates.io](https://img.shields.io/crates/v/contract.svg)](https://crates.io/crates/contract)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/rust-2024%20edition-orange.svg)](https://www.rust-lang.org/)
+
 > **A cross-repository contract and type-safety platform.**  
 > _Think "Prisma for APIs and Distributed Services"._
 
@@ -23,8 +27,10 @@
 - [Semantic Breaking-Change Detection (`diff`)](#semantic-breaking-change-detection-diff)
 - [Cross-Repo Dependency Sync & Drift](#cross-repo-dependency-sync--drift)
 - [CLI Reference](#cli-reference)
-- [Repository Architecture](#repository-architecture)
+- [Rust Library Usage](#rust-library-usage)
+- [Architecture](#architecture)
 - [Testing](#testing)
+- [License](#license)
 
 ---
 
@@ -39,20 +45,20 @@ In modern architectures (microservices, frontend/backend splits, mobile apps), A
 **Contract** provides:
 
 1. **Declarative Schema DSL (`.contract`)**: Clean, human-readable schemas for models, enums, aliases, and services.
-2. **Multi-Language Codegen**: Emits typed TypeScript `fetch` clients, Python Pydantic v2 models & clients, and Rust `serde` structs with native doc comments.
-3. **Pluggable Adapters**: Direct ingestion from OpenAPI 3.0 / Swagger JSON with zero configuration.
+2. **Multi-Language Codegen**: Emits typed TypeScript `fetch` clients, Python Pydantic v2 models & clients, Go structs & `net/http` clients, and Rust `serde` structs with native doc comments.
+3. **Pluggable Adapters**: Direct ingestion and conversion from OpenAPI 3.0, Protobuf (`.proto`), JSON Schema, and GraphQL SDL (`.graphql`).
 4. **Semantic Breaking-Change Engine**: Classifies API changes into `[SAFE]` and `[BREAKING]` for CI/CD gates.
 5. **Cryptographic Synchronization**: Track upstream contract dependencies via `contract.toml` and pin them with SHA-256 hashes in `contract.lock`.
 
 ```text
-[ .contract DSL / OpenAPI 3.0 ]
-               │
-               ▼
-       [ Canonical IR (AST) ] ◄───► [ Semantic Validator ]
-         │         │        │
-         ▼         ▼        ▼
-   [Semantic]  [Breaking] [Multi-Language SDKs]
-  [Validation]  [Diffing] [ TypeScript / Python / Rust ]
+[ .contract DSL / OpenAPI / Proto / GraphQL / JSON Schema ]
+                           │
+                           ▼
+                 [ Canonical IR (AST) ] ◄───► [ Semantic Validator ]
+                   │         │        │
+                   ▼         ▼        ▼
+             [Semantic]  [Breaking] [Multi-Language SDKs]
+            [Validation]  [Diffing] [ TS / Python / Go / Rust ]
 ```
 
 ---
@@ -505,14 +511,57 @@ Run 'contract sync' to update local locks and regenerate clients.
 
 ## CLI Reference
 
-| Command    | Usage                                                          | Description                                                           |
-| :--------- | :------------------------------------------------------------- | :-------------------------------------------------------------------- |
-| `check`    | `contract check <file>`                                        | Validates schema syntax and referential integrity                     |
-| `diff`     | `contract diff <old> <new>`                                    | Compares two versions and flags breaking changes                      |
-| `generate` | `contract generate -i <file> -l <ts\|python\|rust> [-o <out>]` | Emits client SDK or model code                                        |
-| `import`   | `contract import <file.json> [-o <out.contract>]`              | Ingests OpenAPI 3.0 / Swagger JSON into `.contract` DSL               |
-| `sync`     | `contract sync [--force]`                                      | Synchronizes `contract.toml`, updates `contract.lock`, and emits code |
-| `drift`    | `contract drift`                                               | Verifies local lockfile matches upstream contracts                    |
+| Command    | Usage                                                             | Description                                                           |
+| :--------- | :---------------------------------------------------------------- | :-------------------------------------------------------------------- |
+| `check`    | `contract check <file>`                                           | Validates schema syntax and referential integrity                     |
+| `diff`     | `contract diff <old> <new>`                                       | Compares two versions and flags breaking changes                      |
+| `generate` | `contract generate -i <file> -l <ts\|python\|go\|rust> [-o <out>]` | Emits client SDK or model code                                        |
+| `import`   | `contract import <file> [-o <out.contract>]`                      | Ingests OpenAPI 3.0, Protobuf, GraphQL, or JSON Schema into DSL       |
+| `sync`     | `contract sync [--force]`                                         | Synchronizes `contract.toml`, updates `contract.lock`, and emits code |
+| `drift`    | `contract drift`                                                  | Verifies local lockfile matches upstream contracts                    |
+
+---
+
+## Rust Library Usage
+
+You can also embed `contract` directly into your Rust tooling or CI pipelines:
+
+```toml
+[dependencies]
+contract = "0.1.0"
+```
+
+```rust
+use contract::parser::parse;
+use contract::diff::diff;
+use contract::codegen::TypeScriptGenerator;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let old_ast = parse(r#"
+        contract Api {
+            model User { id: String }
+        }
+    "#)?;
+
+    let new_ast = parse(r#"
+        contract Api {
+            model User { id: Int64 }
+        }
+    "#)?;
+
+    // Detect breaking changes
+    let report = diff(&old_ast, &new_ast);
+    if report.has_breaking_changes() {
+        println!("Breaking changes found: {:?}", report.breaking_changes());
+    }
+
+    // Generate TypeScript SDK
+    let ts_code = TypeScriptGenerator::generate(&new_ast)?;
+    println!("{}", ts_code);
+
+    Ok(())
+}
+```
 
 ---
 
@@ -543,4 +592,4 @@ cargo test
 
 ## License
 
-MIT
+This project is open-sourced under the [MIT License](LICENSE) — Copyright (c) 2026 Ranjeesh.
