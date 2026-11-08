@@ -10,6 +10,7 @@
 ## Table of Contents
 
 - [The Problem & The Solution](#the-problem--the-solution)
+- [Built for the AI Era: Multi-Agent Coordination](#built-for-the-ai-era-multi-agent-coordination)
 - [Installation](#installation)
 - [Quickstart (3 Steps)](#quickstart-3-steps)
 - [Schema DSL Reference (`.contract`)](#schema-dsl-reference-contract)
@@ -50,6 +51,40 @@ In modern architectures (microservices, frontend/backend splits, mobile apps), A
    [Semantic]  [Breaking] [Multi-Language SDKs]
   [Validation]  [Diffing] [ TypeScript / Python / Rust ]
 ```
+
+---
+
+## Built for the AI Era: Multi-Agent Coordination
+
+In the emerging era of AI-native engineering, multiple autonomous AI agents work concurrently across repositories—for example, a **backend agent** refactoring API endpoints while a **frontend agent** updates the web application.
+
+### The Problem: The "Build, Break & Fix" Token Loop
+Without a deterministic contract layer, multi-agent swarms get trapped in wasteful trial-and-error loops:
+1. The **Backend Agent** modifies routes or payload types.
+2. The **Frontend Agent** attempts to guess the new payload shape from conversational prompts or incomplete code context.
+3. Tests break with runtime 500 errors or TypeScript mismatches.
+4. Agents burn context window and API tokens repeatedly trying to debug, hallucinate alternate fixes, and re-test.
+
+```text
+Traditional AI Flow:
+[Backend Agent] ──► Guessing ──► [Build Fails] ──► [Debug] ──► [Fix] ──► [Repeat Loop]
+```
+
+### The Solution: Contract as the Deterministic Coordination Protocol
+`Contract` acts as the shared, deterministic communication bus for AI coding agents:
+
+```text
+Contract-Powered AI Flow:
+[Backend Agent] ──► Updates .contract ──► `contract sync` ──► [Frontend Agent]
+                           │                                         │
+                           ▼                                         ▼
+                 Deterministic Ground Truth                Zero Guesswork / 100% Typed
+```
+
+- 🤖 **Zero-Hallucination Codegen**: Running `contract sync` deterministically emits fully typed SDKs and Pydantic models. The frontend agent doesn't guess types—it simply consumes the generated SDK guided by the compiler.
+- 🎯 **Machine-Readable AST Diagnostics**: Instead of agents reading ambiguous git diffs, `contract diff` outputs structured, machine-actionable diagnostics (`[BREAKING] types.Order.fields.totalAmount: Float64 -> String`).
+- ⚡ **Maximum Token Density**: Rather than burning thousands of tokens feeding entire server files into an LLM's context window, a `.contract` schema provides complete semantic clarity in just a few dozen lines.
+- 🛡️ **Autonomous Agent Safety Gates**: Agents can run `contract drift` as a pre-flight sanity check before opening a PR, preventing broken changes from ever touching human review or CI.
 
 ---
 
