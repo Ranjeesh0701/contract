@@ -34,6 +34,9 @@ In modern architectures (microservices, mobile apps, frontend/backend splits) an
 
 ## Installation
 
+> [!NOTE]
+> **No dependencies required.** `contract` ships as a standalone, zero-dependency native binary. You do **not** need Rust, Node.js, or any runtime installed to run the CLI.
+
 ### Option 1: Quick Install (Recommended)
 
 **macOS & Linux**:
