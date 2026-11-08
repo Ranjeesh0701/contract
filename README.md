@@ -4,10 +4,9 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2024%20edition-orange.svg)](https://www.rust-lang.org/)
 
-> **The universal API contract & zero-drift synchronization engine.**  
-> _Think Prisma, but for your distributed services, frontend/backend teams, and autonomous AI agents._
+> **The universal API contract language and zero-drift synchronization engine.**
 
-`contract` synchronizes API schemas, types, and clients across independent repositories—giving you compile-time safety and zero runtime surprises regardless of your tech stack.
+`contract` synchronizes API schemas, types, and clients across independent repositories—giving you compile-time safety, automated polyglot SDK generation, and zero runtime surprises across frontend, backend, and AI agents.
 
 ---
 
