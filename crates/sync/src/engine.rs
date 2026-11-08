@@ -196,8 +196,9 @@ impl SyncEngine {
         hasher.update(content.as_bytes());
         let sha256 = format!("{:x}", hasher.finalize());
 
-        let contract = if content.contains("\"openapi\"") || content.contains("\"swagger\"") {
-            adapter_openapi::from_openapi_json(&content).map_err(|e| SyncError::ParseContract {
+        let adapter_reg = adapters::default_registry();
+        let contract = if let Some(adapter) = adapter_reg.find_adapter(None, &content) {
+            adapter.parse(&content).map_err(|e| SyncError::ParseContract {
                 dep: dep_name.to_string(),
                 reason: e.to_string(),
             })?

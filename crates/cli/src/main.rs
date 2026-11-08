@@ -106,11 +106,17 @@ fn read_contract(path: &PathBuf) -> Contract {
         }
     };
 
-    if content.contains("\"openapi\"") || content.contains("\"swagger\"") {
-        match adapter_openapi::from_openapi_json(&content) {
+    let adapter_reg = adapters::default_registry();
+    if let Some(adapter) = adapter_reg.find_adapter(Some(path), &content) {
+        match adapter.parse(&content) {
             Ok(contract) => return contract,
             Err(e) => {
-                eprintln!("Error parsing OpenAPI document '{}': {}", path.display(), e);
+                eprintln!(
+                    "Error parsing schema document '{}' with adapter '{}': {}",
+                    path.display(),
+                    adapter.name(),
+                    e
+                );
                 exit(1);
             }
         }
@@ -248,15 +254,31 @@ fn handle_import(input: PathBuf, output: Option<PathBuf>) {
         }
     };
 
-    let contract = match adapter_openapi::from_openapi_json(&content) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!(
-                "Error importing OpenAPI document '{}': {}",
-                input.display(),
-                e
-            );
-            exit(1);
+    let adapter_reg = adapters::default_registry();
+    let contract = if let Some(adapter) = adapter_reg.find_adapter(Some(&input), &content) {
+        match adapter.parse(&content) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!(
+                    "Error importing document '{}' with adapter '{}': {}",
+                    input.display(),
+                    adapter.name(),
+                    e
+                );
+                exit(1);
+            }
+        }
+    } else {
+        match adapters::from_openapi_json(&content) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!(
+                    "Error importing document '{}': {}",
+                    input.display(),
+                    e
+                );
+                exit(1);
+            }
         }
     };
 

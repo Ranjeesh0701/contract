@@ -8,7 +8,7 @@ ir = { path = "../ir" }
 diff = { path = "../diff" }
 codegen = { path = "../codegen" }
 parser = { path = "../parser" }
-adapter-openapi = { path = "../adapter-openapi" }
+adapters = { path = "../adapters" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

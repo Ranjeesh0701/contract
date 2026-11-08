@@ -12,7 +12,7 @@ ir = { path = "../ir" }
 diff = { path = "../diff" }
 codegen = { path = "../codegen" }
 parser = { path = "../parser" }
-adapter-openapi = { path = "../adapter-openapi" }
+adapters = { path = "../adapters" }
 sync = { path = "../sync" }
 clap = { workspace = true }
 serde = { workspace = true }

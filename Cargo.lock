@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "adapter-openapi"
+name = "adapters"
 version = "0.1.0"
 dependencies = [
  "ir",
@@ -135,7 +135,7 @@ checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 name = "contract-cli"
 version = "0.1.0"
 dependencies = [
- "adapter-openapi",
+ "adapters",
  "clap",
  "codegen",
  "diff",
@@ -373,7 +373,7 @@ dependencies = [
 name = "sync"
 version = "0.1.0"
 dependencies = [
- "adapter-openapi",
+ "adapters",
  "codegen",
  "diff",
  "ir",

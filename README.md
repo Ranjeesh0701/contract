@@ -51,7 +51,7 @@ Built as a modular, high-performance Rust virtual workspace:
 | **[`crates/parser`](crates/parser)** | Zero-dependency tokenizer, parser, and schema emitter for `.contract` files. |
 | **[`crates/diff`](crates/diff)** | Semantic diffing engine for breaking change detection. |
 | **[`crates/codegen`](crates/codegen)** | Multi-language code generator (TypeScript Fetch Client SDK & Rust structs). |
-| **[`crates/adapter-openapi`](crates/adapter-openapi)** | OpenAPI 3.0 / Swagger JSON ingestion pipeline. |
+| **[`crates/adapters`](crates/adapters)** | Pluggable schema adapter interface and ingestion pipelines (OpenAPI 3.0, Swagger, Protobuf, etc.). |
 | **[`crates/sync`](crates/sync)** | Dependency tracker (`contract.toml`), lockfile manager (`contract.lock`), and drift engine. |
 | **[`crates/cli`](crates/cli)** | Unified command-line interface (`contract`). |
 
