@@ -1,7 +1,7 @@
 # Contract ⚡
 
 > **A cross-repository contract and type-safety platform.**  
-> *Think "Prisma for APIs and Distributed Services".*
+> _Think "Prisma for APIs and Distributed Services"._
 
 `Contract` synchronizes types, contracts, and APIs across independent repositories, services, clients, and servers—regardless of programming language or technology stack.
 
@@ -30,11 +30,13 @@
 ## The Problem & The Solution
 
 In modern architectures (microservices, frontend/backend splits, mobile apps), API contracts drift silently:
+
 - A backend engineer alters an `Int64` field to `String`, removes a field, or deletes an enum variant.
 - Frontend apps and downstream services break in production at runtime.
 - Teams rely on manual meetings or loose OpenAPI specs with no compile-time guarantees or drift enforcement.
 
 **Contract** provides:
+
 1. **Declarative Schema DSL (`.contract`)**: Clean, human-readable schemas for models, enums, aliases, and services.
 2. **Multi-Language Codegen**: Emits typed TypeScript `fetch` clients, Python Pydantic v2 models & clients, and Rust `serde` structs with native doc comments.
 3. **Pluggable Adapters**: Direct ingestion from OpenAPI 3.0 / Swagger JSON with zero configuration.
@@ -59,7 +61,9 @@ In modern architectures (microservices, frontend/backend splits, mobile apps), A
 In the emerging era of AI-native engineering, multiple autonomous AI agents work concurrently across repositories—for example, a **backend agent** refactoring API endpoints while a **frontend agent** updates the web application.
 
 ### The Problem: The "Build, Break & Fix" Token Loop
+
 Without a deterministic contract layer, multi-agent swarms get trapped in wasteful trial-and-error loops:
+
 1. The **Backend Agent** modifies routes or payload types.
 2. The **Frontend Agent** attempts to guess the new payload shape from conversational prompts or incomplete code context.
 3. Tests break with runtime 500 errors or TypeScript mismatches.
@@ -71,6 +75,7 @@ Traditional AI Flow:
 ```
 
 ### The Solution: Contract as the Deterministic Coordination Protocol
+
 `Contract` acts as the shared, deterministic communication bus for AI coding agents:
 
 ```text
@@ -91,11 +96,14 @@ Contract-Powered AI Flow:
 ## Installation
 
 ### 1. Requirements
+
 - [Rust](https://www.rust-lang.org/) (2024 edition / 1.85+)
 - Cargo
 
 ### 2. Build from Source
+
 Clone the repository and build the binary:
+
 ```bash
 git clone https://github.com/your-org/contract.git
 cd contract
@@ -105,11 +113,13 @@ cargo build --release
 The compiled binary will be located at `target/release/contract`.
 
 ### 3. Install Globally (Optional)
+
 ```bash
 cargo install --path crates/cli
 ```
 
 Verify the installation:
+
 ```bash
 contract --help
 ```
@@ -154,7 +164,9 @@ service OrderService {
 ```bash
 contract check schema.contract
 ```
+
 Output:
+
 ```text
 ✔ Contract 'ECommerceApi' (v1.0.0) is valid. (3 types, 1 services)
 ```
@@ -162,16 +174,19 @@ Output:
 ### Step 3: Generate Client Code
 
 Generate TypeScript:
+
 ```bash
 contract generate -i schema.contract -l ts -o client.ts
 ```
 
 Generate Python:
+
 ```bash
 contract generate -i schema.contract -l python -o client.py
 ```
 
 Generate Rust:
+
 ```bash
 contract generate -i schema.contract -l rust -o models.rs
 ```
@@ -181,7 +196,9 @@ contract generate -i schema.contract -l rust -o models.rs
 ## Schema DSL Reference (`.contract`)
 
 ### 1. Header Metadata
+
 Every `.contract` file starts with a `contract` block:
+
 ```text
 contract PaymentApi {
     version: "1.2.0"
@@ -190,26 +207,29 @@ contract PaymentApi {
 ```
 
 ### 2. Supported Types
-| Type | Description | TypeScript | Python | Rust |
-| :--- | :--- | :--- | :--- | :--- |
-| `String` | UTF-8 text | `string` | `str` | `String` |
-| `Int32` | 32-bit signed integer | `number` | `int` | `i32` |
-| `Int64` | 64-bit signed integer | `number` | `int` | `i64` |
-| `Float64` | 64-bit floating point | `number` | `float` | `f64` |
-| `Bool` | Boolean flag | `boolean` | `bool` | `bool` |
-| `Bytes` | Binary byte array | `Uint8Array` | `bytes` | `Vec<u8>` |
-| `T?` | Optional / nullable | `T \| null \| undefined` | `Optional[T]` | `Option<T>` |
-| `T[]` | List / array | `T[]` | `list[T]` | `Vec<T>` |
-| `Map<K, V>` | Key-value map | `Record<K, V>` | `dict[K, V]` | `HashMap<K, V>` |
-| `Identifier` | Reference to model/enum | Named Type | Named Type | Named Type |
+
+| Type         | Description             | TypeScript               | Python        | Rust            |
+| :----------- | :---------------------- | :----------------------- | :------------ | :-------------- |
+| `String`     | UTF-8 text              | `string`                 | `str`         | `String`        |
+| `Int32`      | 32-bit signed integer   | `number`                 | `int`         | `i32`           |
+| `Int64`      | 64-bit signed integer   | `number`                 | `int`         | `i64`           |
+| `Float64`    | 64-bit floating point   | `number`                 | `float`       | `f64`           |
+| `Bool`       | Boolean flag            | `boolean`                | `bool`        | `bool`          |
+| `Bytes`      | Binary byte array       | `Uint8Array`             | `bytes`       | `Vec<u8>`       |
+| `T?`         | Optional / nullable     | `T \| null \| undefined` | `Optional[T]` | `Option<T>`     |
+| `T[]`        | List / array            | `T[]`                    | `list[T]`     | `Vec<T>`        |
+| `Map<K, V>`  | Key-value map           | `Record<K, V>`           | `dict[K, V]`  | `HashMap<K, V>` |
+| `Identifier` | Reference to model/enum | Named Type               | Named Type    | Named Type      |
 
 ### 3. Type Aliases
+
 ```text
 type UserId: Int64
 type Headers: Map<String, String>
 ```
 
 ### 4. Enums
+
 ```text
 enum Priority {
     Low,
@@ -219,6 +239,7 @@ enum Priority {
 ```
 
 ### 5. Models (Records)
+
 ```text
 model Customer {
     id: UserId
@@ -229,6 +250,7 @@ model Customer {
 ```
 
 ### 6. Services & Operations
+
 ```text
 service CustomerService {
     getCustomer(UserId): Customer
@@ -251,6 +273,7 @@ contract generate -i schema.contract -l ts -o src/api/client.ts
 ```
 
 **Using the generated TypeScript client:**
+
 ```typescript
 import { ECommerceApiClient } from "./src/api/client";
 
@@ -271,6 +294,7 @@ contract generate -i schema.contract -l python -o src/api/client.py
 ```
 
 **Using the generated Python client:**
+
 ```python
 from src.api.client import ECommerceApiClient
 
@@ -329,6 +353,7 @@ contract diff v1.contract v2.contract
 ```
 
 Output:
+
 ```text
 Contract Changes (3 total):
 
@@ -340,15 +365,16 @@ Contract Changes (3 total):
 ```
 
 ### Change Rules
-| Change | Classification | Reason |
-| :--- | :--- | :--- |
-| **Add optional field (`notes: String?`)** | `[SAFE]` | Existing clients will safely receive or omit it. |
-| **Add required field (`taxId: String`)** | `[BREAKING]` | Existing callers will fail when submitting payloads. |
-| **Add enum variant** | `[SAFE]` | Extends allowed inputs. |
-| **Remove enum variant** | `[BREAKING]` | Existing clients sending that variant will fail. |
-| **Remove field or model** | `[BREAKING]` | Callers expecting that data will crash. |
-| **Change type (`Int64` $\to$ `String`)** | `[BREAKING]` | Incompatible serialization/deserialization. |
-| **Remove service operation** | `[BREAKING]` | Endpoint no longer exists. |
+
+| Change                                    | Classification | Reason                                               |
+| :---------------------------------------- | :------------- | :--------------------------------------------------- |
+| **Add optional field (`notes: String?`)** | `[SAFE]`       | Existing clients will safely receive or omit it.     |
+| **Add required field (`taxId: String`)**  | `[BREAKING]`   | Existing callers will fail when submitting payloads. |
+| **Add enum variant**                      | `[SAFE]`       | Extends allowed inputs.                              |
+| **Remove enum variant**                   | `[BREAKING]`   | Existing clients sending that variant will fail.     |
+| **Remove field or model**                 | `[BREAKING]`   | Callers expecting that data will crash.              |
+| **Change type (`Int64` $\to$ `String`)**  | `[BREAKING]`   | Incompatible serialization/deserialization.          |
+| **Remove service operation**              | `[BREAKING]`   | Endpoint no longer exists.                           |
 
 > [!NOTE]
 > `contract diff` exits with code `1` when breaking changes are detected, making it drop-in ready for GitHub Actions and GitLab CI gates.
@@ -393,7 +419,9 @@ out = "src/api/pets.ts"
 ```bash
 contract sync
 ```
+
 Output:
+
 ```text
 ✔ Successfully synchronized contracts:
   - Locked dependency 'store'
@@ -417,7 +445,9 @@ Run in CI to detect if upstream services have published changes without modifyin
 ```bash
 contract drift
 ```
+
 Output:
+
 ```text
 ℹ Dependency 'store' has safe upstream updates. (1 changes)
 ✔ Dependency 'pets' is up to date.
@@ -429,14 +459,14 @@ Run 'contract sync' to update local locks and regenerate clients.
 
 ## CLI Reference
 
-| Command | Usage | Description |
-| :--- | :--- | :--- |
-| `check` | `contract check <file>` | Validates schema syntax and referential integrity |
-| `diff` | `contract diff <old> <new>` | Compares two versions and flags breaking changes |
-| `generate`| `contract generate -i <file> -l <ts\|python\|rust> [-o <out>]` | Emits client SDK or model code |
-| `import` | `contract import <file.json> [-o <out.contract>]` | Ingests OpenAPI 3.0 / Swagger JSON into `.contract` DSL |
-| `sync` | `contract sync [--force]` | Synchronizes `contract.toml`, updates `contract.lock`, and emits code |
-| `drift` | `contract drift` | Verifies local lockfile matches upstream contracts |
+| Command    | Usage                                                          | Description                                                           |
+| :--------- | :------------------------------------------------------------- | :-------------------------------------------------------------------- |
+| `check`    | `contract check <file>`                                        | Validates schema syntax and referential integrity                     |
+| `diff`     | `contract diff <old> <new>`                                    | Compares two versions and flags breaking changes                      |
+| `generate` | `contract generate -i <file> -l <ts\|python\|rust> [-o <out>]` | Emits client SDK or model code                                        |
+| `import`   | `contract import <file.json> [-o <out.contract>]`              | Ingests OpenAPI 3.0 / Swagger JSON into `.contract` DSL               |
+| `sync`     | `contract sync [--force]`                                      | Synchronizes `contract.toml`, updates `contract.lock`, and emits code |
+| `drift`    | `contract drift`                                               | Verifies local lockfile matches upstream contracts                    |
 
 ---
 
@@ -444,15 +474,15 @@ Run 'contract sync' to update local locks and regenerate clients.
 
 Built as a modular, high-performance Rust virtual workspace:
 
-| Crate | Purpose |
-| :--- | :--- |
-| **[`crates/ir`](crates/ir)** | Canonical AST, types (`Record`, `EnumType`, `Service`), and two-pass semantic validator. |
-| **[`crates/parser`](crates/parser)** | Zero-dependency tokenizer, parser, and schema emitter for `.contract` files. |
-| **[`crates/diff`](crates/diff)** | Semantic diffing engine for breaking change detection. |
-| **[`crates/codegen`](crates/codegen)** | Multi-language code generator (TypeScript Fetch SDK, Python Pydantic models & clients, Rust structs). |
+| Crate                                    | Purpose                                                                                                                 |
+| :--------------------------------------- | :---------------------------------------------------------------------------------------------------------------------- |
+| **[`crates/ir`](crates/ir)**             | Canonical AST, types (`Record`, `EnumType`, `Service`), and two-pass semantic validator.                                |
+| **[`crates/parser`](crates/parser)**     | Zero-dependency tokenizer, parser, and schema emitter for `.contract` files.                                            |
+| **[`crates/diff`](crates/diff)**         | Semantic diffing engine for breaking change detection.                                                                  |
+| **[`crates/codegen`](crates/codegen)**   | Multi-language code generator (TypeScript Fetch SDK, Python Pydantic models & clients, Rust structs).                   |
 | **[`crates/adapters`](crates/adapters)** | Pluggable schema adapter interface (`SchemaAdapter`, `AdapterRegistry`) supporting OpenAPI 3.0, Swagger, Protobuf, etc. |
-| **[`crates/sync`](crates/sync)** | Dependency tracker (`contract.toml`), lockfile manager (`contract.lock`), and drift engine. |
-| **[`crates/cli`](crates/cli)** | Unified command-line interface (`contract`). |
+| **[`crates/sync`](crates/sync)**         | Dependency tracker (`contract.toml`), lockfile manager (`contract.lock`), and drift engine.                             |
+| **[`crates/cli`](crates/cli)**           | Unified command-line interface (`contract`).                                                                            |
 
 ---
 
