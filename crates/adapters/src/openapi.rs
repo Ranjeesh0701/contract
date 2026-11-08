@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::path::Path;
 
 use ir::{
     Contract, EnumType, EnumVariant, Field, Operation, Record, Service, Type, TypeDefinition,
@@ -6,12 +7,34 @@ use ir::{
 use serde_json::Value;
 use thiserror::Error;
 
+use crate::traits::{AdapterError, SchemaAdapter};
+
 #[derive(Debug, Error)]
 pub enum OpenApiError {
     #[error("Failed to parse JSON: {0}")]
     Json(#[from] serde_json::Error),
     #[error("Invalid OpenAPI document: {0}")]
     InvalidDocument(String),
+}
+
+pub struct OpenApiAdapter;
+
+impl SchemaAdapter for OpenApiAdapter {
+    fn name(&self) -> &'static str {
+        "openapi"
+    }
+
+    fn supported_extensions(&self) -> &'static [&'static str] {
+        &["json", "yaml", "yml"]
+    }
+
+    fn can_handle(&self, _path: Option<&Path>, content: &str) -> bool {
+        content.contains("\"openapi\"") || content.contains("\"swagger\"")
+    }
+
+    fn parse(&self, content: &str) -> Result<Contract, AdapterError> {
+        from_openapi_json(content).map_err(|e| AdapterError::Parse(e.to_string()))
+    }
 }
 
 pub fn from_openapi_json(json_str: &str) -> Result<Contract, OpenApiError> {
