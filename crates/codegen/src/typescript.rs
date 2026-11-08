@@ -140,7 +140,10 @@ impl TypeScriptGenerator {
         out.push_str("    this.fetchFn = fetchFn;\n");
         out.push_str("  }\n\n");
 
-        for op in &service.operations {
+        for (idx, op) in service.operations.iter().enumerate() {
+            if idx > 0 {
+                out.push('\n');
+            }
             let method_name = Self::to_camel_case(&op.name);
             let has_input = op.input.is_some();
             let input_param = if has_input {

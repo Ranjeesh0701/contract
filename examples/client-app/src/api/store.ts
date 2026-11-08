@@ -61,6 +61,7 @@ export class OrderServiceClient implements OrderService {
     }
     return (await res.json()) as Order;
   }
+
   async createOrder(input: Order): Promise<Order> {
     const url = `${this.baseUrl}/OrderService/createOrder`;
     const res = await this.fetchFn(url, {

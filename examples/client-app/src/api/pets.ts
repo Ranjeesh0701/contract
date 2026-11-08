@@ -50,6 +50,7 @@ export class PetstoreApiApiClient implements PetstoreApiApi {
     }
     return (await res.json()) as Pet[];
   }
+
   async createPet(input: NewPet): Promise<Pet> {
     const url = `${this.baseUrl}/PetstoreApiApi/createPet`;
     const res = await this.fetchFn(url, {
