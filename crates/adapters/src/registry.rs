@@ -2,7 +2,10 @@ use std::path::Path;
 
 use ir::Contract;
 
+use crate::graphql::GraphQLAdapter;
+use crate::json_schema::JsonSchemaAdapter;
 use crate::openapi::OpenApiAdapter;
+use crate::protobuf::ProtobufAdapter;
 use crate::traits::{AdapterError, SchemaAdapter};
 
 pub struct AdapterRegistry {
@@ -24,7 +27,11 @@ impl AdapterRegistry {
 
     pub fn new_with_defaults() -> Self {
         let mut registry = Self::new();
+        // Register in prioritized order
         registry.register(OpenApiAdapter);
+        registry.register(ProtobufAdapter);
+        registry.register(GraphQLAdapter);
+        registry.register(JsonSchemaAdapter);
         registry
     }
 

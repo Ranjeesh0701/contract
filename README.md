@@ -18,7 +18,7 @@
   - [TypeScript SDK](#typescript-sdk)
   - [Python SDK (Pydantic v2)](#python-sdk-pydantic-v2)
   - [Rust Types (Serde)](#rust-types-serde)
-- [Ingesting OpenAPI / Swagger](#ingesting-openapi--swagger)
+- [Ingesting External Schemas (OpenAPI, Protobuf, GraphQL, JSON Schema)](#ingesting-external-schemas-openapi-protobuf-graphql-json-schema)
 - [Semantic Breaking-Change Detection (`diff`)](#semantic-breaking-change-detection-diff)
 - [Cross-Repo Dependency Sync & Drift](#cross-repo-dependency-sync--drift)
 - [CLI Reference](#cli-reference)
@@ -330,17 +330,34 @@ let order = Order {
 
 ---
 
-## Ingesting OpenAPI / Swagger
+## Ingesting External Schemas (OpenAPI, Protobuf, GraphQL, JSON Schema)
 
-If your backend already exposes OpenAPI 3.0 or Swagger specs (e.g., FastAPI, Spring Boot, Go, NestJS), you can convert it directly to `.contract` DSL:
+`Contract` features a pluggable adapter pipeline ([`crates/adapters`](crates/adapters)) that can automatically detect and ingest popular API and schema formats into canonical `.contract` schemas:
 
 ```bash
-contract import swagger.json -o api.contract
+# Ingest OpenAPI 3.0 / Swagger JSON:
+contract import openapi.json -o api.contract
+
+# Ingest Protocol Buffers (proto3):
+contract import service.proto -o api.contract
+
+# Ingest GraphQL SDL:
+contract import schema.graphql -o api.contract
+
+# Ingest JSON Schema:
+contract import event.json -o api.contract
 ```
 
-- Converts `components.schemas` into `model` and `enum` definitions.
-- Detects required vs optional fields.
-- Converts REST paths into typed RPC `service` operations.
+### Supported Formats & Capabilities
+| Adapter | File Types | Features Captured |
+| :--- | :--- | :--- |
+| **OpenAPI 3.0 / Swagger** | `.json` | `components.schemas`, `paths` (REST endpoints), required/optionality |
+| **Protocol Buffers** | `.proto` | `syntax = "proto3"`, `package`, `message`, `enum`, `service` with `rpc` |
+| **GraphQL SDL** | `.graphql`, `.gql` | `type`, `enum`, `input`, `Query`, `Mutation`, `!` non-null types |
+| **JSON Schema** | `.json` | `$schema`, `$defs` / `definitions`, `properties`, `required`, `enum` |
+
+> [!TIP]
+> You can also directly run `contract check file.proto` or `contract generate -i service.proto -l ts`—the CLI automatically detects the schema format using the [`AdapterRegistry`](crates/adapters/src/registry.rs).
 
 ---
 
