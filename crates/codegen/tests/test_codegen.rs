@@ -100,3 +100,30 @@ fn test_python_codegen() {
     assert!(py_code.contains("class OrderServiceClient(OrderService):"));
     assert!(py_code.contains("class ShopContractClient:"));
 }
+
+#[test]
+fn test_python_codegen_selective_imports() {
+    // Contract with only an enum (no services, no models, no optionals)
+    let contract = ir::Contract {
+        name: "OnlyEnumContract".to_string(),
+        version: "1.0.0".to_string(),
+        description: None,
+        types: vec![ir::TypeDefinition::Enum(ir::EnumType {
+            name: "SimpleStatus".to_string(),
+            variants: vec![ir::EnumVariant {
+                name: "Active".to_string(),
+                description: None,
+            }],
+            description: None,
+        })],
+        services: vec![],
+    };
+
+    let py_code = PythonGenerator::generate(&contract);
+
+    assert!(py_code.contains("from enum import Enum"));
+    assert!(!py_code.contains("from pydantic import"));
+    assert!(!py_code.contains("from typing import Optional"));
+    assert!(!py_code.contains("import urllib"));
+    assert!(!py_code.contains("from abc import"));
+}

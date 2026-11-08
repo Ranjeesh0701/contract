@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from enum import Enum
 import json
-from typing import Any, Optional, Union
+from typing import Optional
 import urllib.error
 import urllib.request
 
