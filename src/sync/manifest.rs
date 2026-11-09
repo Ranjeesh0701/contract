@@ -28,6 +28,7 @@ pub enum DependencySource {
         branch: Option<String>,
         tag: Option<String>,
         rev: Option<String>,
+        version: Option<String>,
     },
     Path {
         path: String,

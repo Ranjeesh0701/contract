@@ -8,6 +8,7 @@ use crate::ir::Contract;
 use crate::parser;
 use crate::sync::lockfile::{LockedContract, Lockfile};
 use crate::sync::manifest::{DependencySource, Manifest};
+use crate::sync::semver::{VersionReq, resolve_best_version};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
@@ -289,6 +290,7 @@ impl SyncEngine {
                 branch,
                 tag,
                 rev,
+                version,
             } => {
                 let (text, desc, file_path) = Self::fetch_git(
                     base_dir,
@@ -298,6 +300,7 @@ impl SyncEngine {
                     branch.as_deref(),
                     tag.as_deref(),
                     rev.as_deref(),
+                    version.as_deref(),
                 )?;
                 (text, desc, Some(file_path))
             }
@@ -339,6 +342,7 @@ impl SyncEngine {
         Ok((contract, sha256, desc))
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn fetch_git(
         base_dir: &Path,
         dep_name: &str,
@@ -347,6 +351,7 @@ impl SyncEngine {
         branch: Option<&str>,
         tag: Option<&str>,
         rev: Option<&str>,
+        version_req: Option<&str>,
     ) -> Result<(String, String, PathBuf), SyncError> {
         let mut hasher = Sha256::new();
         hasher.update(git_url.as_bytes());
@@ -355,7 +360,67 @@ impl SyncEngine {
         let cache_git_dir = base_dir.join(".contract").join("cache").join("git");
         let repo_dir = cache_git_dir.join(&repo_hash[..16]);
 
-        let target_ref = rev.or(tag).or(branch).unwrap_or("HEAD");
+        let resolved_tag_string;
+        let target_ref = if let Some(req_str) = version_req {
+            let req = VersionReq::parse(req_str).map_err(|e| SyncError::FetchRemote {
+                dep: dep_name.to_string(),
+                reason: format!("Invalid version requirement '{}': {}", req_str, e),
+            })?;
+
+            let mut tag_names = Vec::new();
+            let ls_remote = std::process::Command::new("git")
+                .args(["ls-remote", "--tags", git_url])
+                .output();
+
+            if let Ok(ref out) = ls_remote
+                && out.status.success()
+            {
+                let text = String::from_utf8_lossy(&out.stdout);
+                for line in text.lines() {
+                    if let Some((_, ref_path)) = line.split_once('\t')
+                        && let Some(tname) = ref_path.strip_prefix("refs/tags/")
+                        && !tname.ends_with("^{}")
+                    {
+                        tag_names.push(tname.to_string());
+                    }
+                }
+            }
+
+            if tag_names.is_empty() && repo_dir.exists() {
+                let local_tags = std::process::Command::new("git")
+                    .current_dir(&repo_dir)
+                    .args(["tag", "-l"])
+                    .output();
+                if let Ok(ref out) = local_tags {
+                    let text = String::from_utf8_lossy(&out.stdout);
+                    for line in text.lines() {
+                        let t = line.trim();
+                        if !t.is_empty() {
+                            tag_names.push(t.to_string());
+                        }
+                    }
+                }
+            }
+
+            let tag_refs: Vec<&str> = tag_names.iter().map(|s| s.as_str()).collect();
+            match resolve_best_version(&req, tag_refs) {
+                Some((best_tag, _)) => {
+                    resolved_tag_string = best_tag.to_string();
+                    resolved_tag_string.as_str()
+                }
+                None => {
+                    return Err(SyncError::FetchRemote {
+                        dep: dep_name.to_string(),
+                        reason: format!(
+                            "No remote tag in '{}' satisfies version requirement '{}'",
+                            git_url, req_str
+                        ),
+                    });
+                }
+            }
+        } else {
+            rev.or(tag).or(branch).unwrap_or("HEAD")
+        };
 
         if !repo_dir.exists() {
             fs::create_dir_all(&cache_git_dir)
@@ -363,7 +428,9 @@ impl SyncEngine {
 
             let mut clone_cmd = std::process::Command::new("git");
             clone_cmd.args(["clone", "--quiet"]);
-            if let Some(b) = branch {
+            if target_ref != "HEAD" && rev.is_none() {
+                clone_cmd.args(["--branch", target_ref, "--depth", "1"]);
+            } else if let Some(b) = branch {
                 clone_cmd.args(["--branch", b, "--depth", "1"]);
             }
             clone_cmd.arg(git_url).arg(&repo_dir);
@@ -393,7 +460,7 @@ impl SyncEngine {
         } else {
             let _ = std::process::Command::new("git")
                 .current_dir(&repo_dir)
-                .args(["fetch", "--quiet"])
+                .args(["fetch", "--quiet", "--tags"])
                 .status();
         }
 
@@ -426,8 +493,8 @@ impl SyncEngine {
             });
         }
 
-        let content = fs::read_to_string(&full_path)
-            .map_err(|e| SyncError::Io(full_path.clone(), e))?;
+        let content =
+            fs::read_to_string(&full_path).map_err(|e| SyncError::Io(full_path.clone(), e))?;
 
         let desc = format!("git:{}#{}:{}", git_url, target_ref, contract_subpath);
         Ok((content, desc, full_path))
@@ -445,8 +512,8 @@ impl SyncEngine {
             } else {
                 file_path
             };
-            let text = fs::read_to_string(&full_path)
-                .map_err(|e| SyncError::Io(full_path.clone(), e))?;
+            let text =
+                fs::read_to_string(&full_path).map_err(|e| SyncError::Io(full_path.clone(), e))?;
             (text, full_path)
         } else if url_str.starts_with("http://") || url_str.starts_with("https://") {
             let mut hasher = Sha256::new();
@@ -472,11 +539,9 @@ impl SyncEngine {
 
             let text = match curl_out {
                 Ok(out) if out.status.success() => {
-                    let s = String::from_utf8(out.stdout).map_err(|e| {
-                        SyncError::FetchRemote {
-                            dep: dep_name.to_string(),
-                            reason: format!("URL returned non-UTF8 response: {}", e),
-                        }
+                    let s = String::from_utf8(out.stdout).map_err(|e| SyncError::FetchRemote {
+                        dep: dep_name.to_string(),
+                        reason: format!("URL returned non-UTF8 response: {}", e),
                     })?;
                     let _ = fs::write(&cache_file, &s);
                     s

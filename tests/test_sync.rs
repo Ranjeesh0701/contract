@@ -404,3 +404,136 @@ fn test_sync_with_extension_based_proto_dependency() {
 
     let _ = fs::remove_dir_all(temp_dir);
 }
+
+#[test]
+fn test_sync_with_git_semver_range_resolution() {
+    let base_temp = std::env::temp_dir().join(format!(
+        "contract_sync_git_semver_test_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    fs::create_dir_all(&base_temp).unwrap();
+
+    let remote_repo = base_temp.join("remote-repo");
+    fs::create_dir_all(&remote_repo).unwrap();
+
+    // 1. Initialize git repo
+    let git_run = |args: &[&str]| {
+        let status = std::process::Command::new("git")
+            .current_dir(&remote_repo)
+            .args(args)
+            .status()
+            .expect("Failed to run git command");
+        assert!(status.success(), "Git command failed: {:?}", args);
+    };
+
+    git_run(&["init"]);
+    git_run(&["config", "user.name", "Test Committer"]);
+    git_run(&["config", "user.email", "test@example.com"]);
+
+    // Commit 1: v1.0.0
+    let contract_v1_0 = r#"
+    contract ProductService {
+        version: "1.0.0"
+        model Product {
+            id: String;
+            name: String;
+        }
+    }
+    "#;
+    fs::write(remote_repo.join("product.contract"), contract_v1_0).unwrap();
+    git_run(&["add", "product.contract"]);
+    git_run(&["commit", "-m", "Release v1.0.0"]);
+    git_run(&["tag", "v1.0.0"]);
+
+    // Commit 2: v1.2.0
+    let contract_v1_2 = r#"
+    contract ProductService {
+        version: "1.2.0"
+        model Product {
+            id: String;
+            name: String;
+            category: String?;
+        }
+    }
+    "#;
+    fs::write(remote_repo.join("product.contract"), contract_v1_2).unwrap();
+    git_run(&["add", "product.contract"]);
+    git_run(&["commit", "-m", "Release v1.2.0"]);
+    git_run(&["tag", "v1.2.0"]);
+
+    // Commit 3: v1.2.4 (Highest in ^1.2.0 range)
+    let contract_v1_2_4 = r#"
+    contract ProductService {
+        version: "1.2.4"
+        model Product {
+            id: String;
+            name: String;
+            category: String?;
+            sku: String?;
+        }
+    }
+    "#;
+    fs::write(remote_repo.join("product.contract"), contract_v1_2_4).unwrap();
+    git_run(&["add", "product.contract"]);
+    git_run(&["commit", "-m", "Release v1.2.4"]);
+    git_run(&["tag", "v1.2.4"]);
+
+    // Commit 4: v2.0.0 (Breaking, out of ^1.2.0 range)
+    let contract_v2_0 = r#"
+    contract ProductService {
+        version: "2.0.0"
+        model Product {
+            id: String;
+            name: String;
+            major_change: Bool;
+        }
+    }
+    "#;
+    fs::write(remote_repo.join("product.contract"), contract_v2_0).unwrap();
+    git_run(&["add", "product.contract"]);
+    git_run(&["commit", "-m", "Release v2.0.0"]);
+    git_run(&["tag", "v2.0.0"]);
+
+    // 2. Set up Consumer Workspace targeting ^1.2.0
+    let consumer_dir = base_temp.join("consumer");
+    fs::create_dir_all(&consumer_dir).unwrap();
+
+    let manifest_content = format!(
+        r#"
+    [project]
+    name = "consumer-app"
+
+    [dependencies]
+    products = {{ git = "{git_url}", path = "product.contract", version = "^1.2.0" }}
+
+    [[generate]]
+    contract = "products"
+    lang = "ts"
+    out = "src/sdk/products.ts"
+    "#,
+        git_url = remote_repo.display()
+    );
+
+    fs::write(consumer_dir.join("contract.toml"), manifest_content).unwrap();
+
+    // 3. Run sync
+    let report = SyncEngine::sync(&consumer_dir, false).expect("Sync with SemVer should succeed");
+    assert_eq!(report.synced_contracts.len(), 1);
+
+    // 4. Verify resolved code contains fields from v1.2.4 and not v2.0.0
+    let generated_ts = fs::read_to_string(consumer_dir.join("src/sdk/products.ts")).unwrap();
+    assert!(generated_ts.contains("sku?: string"));
+    assert!(generated_ts.contains("category?: string"));
+    assert!(!generated_ts.contains("major_change"));
+
+    let lockfile =
+        contract::sync::Lockfile::load_from_file(consumer_dir.join("contract.lock")).unwrap();
+    let locked = lockfile.contracts.get("products").unwrap();
+    assert_eq!(locked.version, "1.2.4");
+    assert!(locked.source.contains("v1.2.4"));
+
+    let _ = fs::remove_dir_all(base_temp);
+}

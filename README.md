@@ -17,9 +17,9 @@ Contract is a high-performance API contract platform and zero-drift synchronizat
 
 In modern architectures (microservices, mobile apps, frontend/backend splits) and multi-agent AI environments, API schemas drift silently:
 
-* 💥 A backend engineer or AI agent changes a field type, renames a property, or drops an enum variant.
-* 💔 Downstream apps and services break in production at runtime.
-* 🔄 Autonomous AI agents get trapped in expensive trial-and-error loops—guessing payload shapes, breaking builds, and burning context tokens attempting to self-repair.
+- 💥 A backend engineer or AI agent changes a field type, renames a property, or drops an enum variant.
+- 💔 Downstream apps and services break in production at runtime.
+- 🔄 Autonomous AI agents get trapped in expensive trial-and-error loops—guessing payload shapes, breaking builds, and burning context tokens attempting to self-repair.
 
 ### Contract provides:
 
@@ -40,11 +40,13 @@ In modern architectures (microservices, mobile apps, frontend/backend splits) an
 ### Option 1: Quick Install (Recommended)
 
 **macOS & Linux**:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Ranjeesh0701/contract/main/scripts/install.sh | sh
 ```
 
 **Windows (PowerShell)**:
+
 ```powershell
 irm https://raw.githubusercontent.com/Ranjeesh0701/contract/main/scripts/install.ps1 | iex
 ```
@@ -59,14 +61,15 @@ cargo install contract
 
 Download pre-compiled binaries for your platform from [GitHub Releases](https://github.com/Ranjeesh0701/contract/releases):
 
-* **Linux x64**: `contract-linux-x64.tar.gz`
-* **macOS Apple Silicon**: `contract-darwin-arm64.tar.gz`
-* **macOS Intel**: `contract-darwin-x64.tar.gz`
-* **Windows x64**: `contract-windows-x64.zip`
+- **Linux x64**: `contract-linux-x64.tar.gz`
+- **macOS Apple Silicon**: `contract-darwin-arm64.tar.gz`
+- **macOS Intel**: `contract-darwin-x64.tar.gz`
+- **Windows x64**: `contract-windows-x64.zip`
 
 Extract and move the binary to any directory in your `PATH` (e.g., `/usr/local/bin`).
 
 Verify the installation:
+
 ```bash
 contract --help
 ```
@@ -106,6 +109,7 @@ service OrderService {
 ### 2. Validate & Generate Client SDKs
 
 Validate schema syntax and references:
+
 ```bash
 contract check api.contract
 ```
@@ -162,12 +166,20 @@ Coordinate contracts across independent service repositories with zero drift:
 ```toml
 [dependencies]
 billing = { path = "../services/billing/api.contract" }
-auth    = { path = "../services/auth/api.contract" }
+
+inventory = { git = "https://github.com/acme/inventory.git", path = "schema.contract", version = "^1.2.0" }
+
+auth = { url = "https://raw.githubusercontent.com/acme/auth/main/api.contract" }
 
 [[generate]]
 contract = "billing"
 lang = "typescript"
 output = "src/sdk/billing.ts"
+
+[[generate]]
+contract = "inventory"
+lang = "rust"
+output = "src/sdk/inventory.rs"
 
 [[generate]]
 contract = "auth"
@@ -224,15 +236,15 @@ contract export -i api.contract -o openapi.json
 
 ## CLI Reference
 
-| Command | Usage | Description |
-|---|---|---|
-| `contract check` | `contract check <file>` | Validate schema syntax, type references, and semantics |
-| `contract diff` | `contract diff <old> <new> [-f text\|json\|markdown]` | Compare contract versions, flag deprecations and breaking changes |
-| `contract generate` | `contract generate -i <file> -l <lang> [-o <out>]` | Emit typed SDKs (`ts`, `python`, `go`, `rust`) |
-| `contract import` | `contract import <file> [-o <out>]` | Ingest OpenAPI, Protobuf, GraphQL, or JSON Schema |
-| `contract export` | `contract export -i <file> [-f <format>] [-o <out>]` | Export contract to OpenAPI 3.1 specification |
-| `contract sync` | `contract sync [--force]` | Synchronize `contract.toml` dependencies and update lockfile |
-| `contract drift` | `contract drift` | Verify upstream contract and downstream generated code integrity |
+| Command             | Usage                                                 | Description                                                       |
+| ------------------- | ----------------------------------------------------- | ----------------------------------------------------------------- |
+| `contract check`    | `contract check <file>`                               | Validate schema syntax, type references, and semantics            |
+| `contract diff`     | `contract diff <old> <new> [-f text\|json\|markdown]` | Compare contract versions, flag deprecations and breaking changes |
+| `contract generate` | `contract generate -i <file> -l <lang> [-o <out>]`    | Emit typed SDKs (`ts`, `python`, `go`, `rust`)                    |
+| `contract import`   | `contract import <file> [-o <out>]`                   | Ingest OpenAPI, Protobuf, GraphQL, or JSON Schema                 |
+| `contract export`   | `contract export -i <file> [-f <format>] [-o <out>]`  | Export contract to OpenAPI 3.1 specification                      |
+| `contract sync`     | `contract sync [--force]`                             | Synchronize `contract.toml` dependencies and update lockfile      |
+| `contract drift`    | `contract drift`                                      | Verify upstream contract and downstream generated code integrity  |
 
 ---
 
