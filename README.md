@@ -9,7 +9,7 @@
 
 Contract is a high-performance API contract platform and zero-drift synchronization engine built in 100% native Rust. It connects services, frontend apps, and autonomous AI agents through a single, deterministic source of truth—eliminating runtime type errors, broken integrations, and token-wasting AI debugging loops.
 
-> **Project status:** v0.2.0 (Active development).
+> **Project status:** v0.3.0 (Active development).
 
 ---
 
@@ -234,17 +234,112 @@ contract export -i api.contract -o openapi.json
 
 ---
 
+## Modular Contracts & Imports
+
+Split large domain models across modular schema files and compose them cleanly using `import`:
+
+```text
+import "common/types.contract";
+import "billing/money.contract";
+
+contract OrderService {
+    version: "2.0.0"
+
+    model Order {
+        id: string
+        amount: Money
+        shippingAddress: Address
+    }
+}
+```
+
+- **Transitive Resolution**: Imports are recursively resolved (`A -> B -> C`).
+- **Diamond Deduplication**: Shared schemas imported through multiple paths are unified without duplicate type errors.
+- **Cycle Detection**: Circular dependency chains are caught at parse time with full path traces.
+
+---
+
+## Deprecation Lifecycle
+
+Tag evolving models, fields, and operations with `@deprecated("reason")`:
+
+```text
+model User {
+    id: string
+    @deprecated("Use emailAddress instead")
+    email: string
+}
+```
+
+Deprecations automatically generate warnings in `contract diff` and propagate natively into generated SDKs:
+- **TypeScript**: JSDoc `@deprecated Use emailAddress instead`
+- **Python**: Pydantic `Field(deprecated=True)`
+- **Go**: `// Deprecated: Use emailAddress instead`
+- **Rust**: `#[deprecated(note = "Use emailAddress instead")]`
+
+---
+
+## Impact Blast Radius Graph Analysis
+
+Determine exactly which downstream services and endpoints are affected when models or fields change:
+
+```bash
+# Analyze impact between versions
+contract impact api.v1.contract api.v2.contract
+
+# Trace blast radius for a specific target symbol
+contract impact api.contract --target Address --format markdown
+```
+
+Outputs the full transitive dependency path, operational direction (`Input`, `Output`, `Both`), traversal depth, and a quantitative blast radius score.
+
+---
+
+## Contract Distribution Bundles
+
+Package multi-file contracts into single, tamper-proof, offline-distributable bundles for CI/CD, Artifactory, S3, or air-gapped deployments:
+
+```bash
+# Pack contract and all constituent imports into a bundle
+contract pack api/main.contract -o dist/api.bundle.json
+
+# Verify cryptographic checksum and unpack
+contract unpack dist/api.bundle.json -o ./extracted
+
+# Verify integrity without unpacking
+contract unpack dist/api.bundle.json --verify-only
+```
+
+> [!TIP]
+> All CLI commands (`contract check`, `contract diff`, `contract generate`, `contract impact`) natively consume `.bundle.json` files directly!
+
+---
+
+## Automated Semantic Changelog
+
+Generate GitHub release-ready changelogs categorized into Breaking Changes, Deprecations, and Backwards-Compatible Additions:
+
+```bash
+contract changelog old.contract new.contract -o CHANGELOG.md
+```
+
+---
+
 ## CLI Reference
 
-| Command             | Usage                                                      | Description                                                             |
-| ------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `contract check`    | `contract check <file>`                                    | Validate schema syntax, type references, and semantics                  |
-| `contract diff`     | `contract diff <old> <new> [-f <format>] [-d <direction>]` | Compare contract versions with role-aware directional breaking analysis |
-| `contract generate` | `contract generate -i <file> -l <lang> [-o <out>]`         | Emit typed SDKs (`ts`, `python`, `go`, `rust`)                          |
-| `contract import`   | `contract import <file> [-o <out>]`                        | Ingest OpenAPI, Protobuf, GraphQL, or JSON Schema                       |
-| `contract export`   | `contract export -i <file> [-f <format>] [-o <out>]`       | Export contract to OpenAPI 3.1 specification                            |
-| `contract sync`     | `contract sync [--force]`                                  | Synchronize `contract.toml` dependencies and update lockfile            |
-| `contract drift`    | `contract drift`                                           | Verify upstream contract and downstream generated code integrity        |
+| Command              | Usage                                                         | Description                                                             |
+| -------------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `contract check`     | `contract check <file>`                                       | Validate schema syntax, type references, and semantics                  |
+| `contract diff`      | `contract diff <old> <new> [-f <format>] [-d <direction>]`    | Compare contract versions with role-aware directional breaking analysis |
+| `contract impact`    | `contract impact <old> [new] [-t <target>] [-f <format>]`     | Compute blast radius and map affected endpoints across services         |
+| `contract pack`      | `contract pack <input> [-o <out>] [--flatten]`                | Package contract & transitive imports into a tamper-proof bundle        |
+| `contract unpack`    | `contract unpack <bundle> [-o <out>] [--verify-only]`         | Verify SHA-256 integrity and extract constituent contracts              |
+| `contract changelog` | `contract changelog <old> <new> [-o <out>] [-t <title>]`      | Generate automated release notes categorized by breaking/safe severity  |
+| `contract generate`  | `contract generate -i <file> -l <lang> [-o <out>]`            | Emit typed SDKs (`ts`, `python`, `go`, `rust`)                          |
+| `contract import`    | `contract import <file> [-o <out>]`                           | Ingest OpenAPI, Protobuf, GraphQL, or JSON Schema                       |
+| `contract export`    | `contract export -i <file> [-f <format>] [-o <out>]`          | Export contract to OpenAPI 3.1 specification                            |
+| `contract sync`      | `contract sync [--force]`                                     | Synchronize `contract.toml` dependencies and update lockfile            |
+| `contract drift`     | `contract drift`                                              | Verify upstream contract and downstream generated code integrity        |
 
 ---
 
@@ -254,7 +349,7 @@ Embed Contract directly into your custom developer tooling or CI pipelines:
 
 ```toml
 [dependencies]
-contract = "0.2.0"
+contract = "0.3.0"
 ```
 
 ```rust
