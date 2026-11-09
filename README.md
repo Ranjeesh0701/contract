@@ -126,22 +126,29 @@ contract generate -i api.contract -l go -o client.go
 contract generate -i api.contract -l rust -o types.rs
 ```
 
-### 3. Catch Breaking Changes in CI
+### 3. Catch Breaking Changes & Track Deprecations in CI
 
-Prevent broken APIs from ever reaching production:
+Prevent broken APIs from reaching production and track deprecation lifecycles:
 
 ```bash
+# Standard console output
 contract diff v1.contract v2.contract --fail-on-breaking
+
+# Markdown report for GitHub PR comments
+contract diff v1.contract v2.contract --format markdown
+
+# Machine-readable JSON output for automated CI gates
+contract diff v1.contract v2.contract --format json
 ```
 
 ```text
-Contract Diff: StorefrontApi -> StorefrontApi
-  [BREAKING] types.Order.fields.totalAmount: type changed from Float64 to String
-  [BREAKING] types.OrderStatus.variants.Cancelled: variant was removed
-  [SAFE]     types.Order.fields.discountCode: optional field was added
+Contract Changes (3 total):
 
-Summary: 2 breaking change(s), 1 safe change(s)
-Error: Breaking changes detected in contract!
+  [BREAKING] types.Order.fields.totalAmount -> Field 'totalAmount' changed type from Float64 to String
+  [WARNING]  types.Order.fields.discountCode -> Field 'discountCode' in record 'Order' was marked as deprecated: Use couponCode instead
+  [SAFE]     types.Order.fields.couponCode -> Added optional field 'couponCode' to record 'Order'
+
+✖ Found 1 breaking change(s)!
 ```
 
 ---
@@ -220,7 +227,7 @@ contract export -i api.contract -o openapi.json
 | Command | Usage | Description |
 |---|---|---|
 | `contract check` | `contract check <file>` | Validate schema syntax, type references, and semantics |
-| `contract diff` | `contract diff <old> <new>` | Compare two contract versions and flag breaking changes |
+| `contract diff` | `contract diff <old> <new> [-f text\|json\|markdown]` | Compare contract versions, flag deprecations and breaking changes |
 | `contract generate` | `contract generate -i <file> -l <lang> [-o <out>]` | Emit typed SDKs (`ts`, `python`, `go`, `rust`) |
 | `contract import` | `contract import <file> [-o <out>]` | Ingest OpenAPI, Protobuf, GraphQL, or JSON Schema |
 | `contract export` | `contract export -i <file> [-f <format>] [-o <out>]` | Export contract to OpenAPI 3.1 specification |

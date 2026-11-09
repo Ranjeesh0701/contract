@@ -63,4 +63,17 @@ impl DiffReport {
             .filter(|c| c.severity == ChangeSeverity::Breaking)
             .collect()
     }
+
+    pub fn warnings(&self) -> Vec<&Change> {
+        self.changes
+            .iter()
+            .filter(|c| c.severity == ChangeSeverity::Warning)
+            .collect()
+    }
+
+    pub fn has_warnings(&self) -> bool {
+        self.changes
+            .iter()
+            .any(|c| c.severity == ChangeSeverity::Warning)
+    }
 }

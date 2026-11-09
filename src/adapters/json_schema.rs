@@ -78,6 +78,7 @@ fn parse_definition(name: &str, val: &Value, types: &mut Vec<TypeDefinition>) {
             .map(|n| EnumVariant {
                 name: n.to_string(),
                 description: None,
+                deprecated: None,
             })
             .collect();
 
@@ -85,6 +86,7 @@ fn parse_definition(name: &str, val: &Value, types: &mut Vec<TypeDefinition>) {
             name: name.to_string(),
             variants,
             description: val["description"].as_str().map(|s| s.to_string()),
+            deprecated: None,
         }));
         return;
     }
@@ -108,6 +110,7 @@ fn parse_definition(name: &str, val: &Value, types: &mut Vec<TypeDefinition>) {
                     .map(|n| EnumVariant {
                         name: n.to_string(),
                         description: None,
+                        deprecated: None,
                     })
                     .collect();
 
@@ -115,6 +118,7 @@ fn parse_definition(name: &str, val: &Value, types: &mut Vec<TypeDefinition>) {
                     name: enum_type_name.clone(),
                     variants,
                     description: prop_val["description"].as_str().map(|s| s.to_string()),
+                    deprecated: None,
                 }));
                 let ref_type = Type::Reference(enum_type_name);
                 if is_required {
@@ -138,6 +142,7 @@ fn parse_definition(name: &str, val: &Value, types: &mut Vec<TypeDefinition>) {
                 name: prop_name.clone(),
                 field_type,
                 description: prop_val["description"].as_str().map(|s| s.to_string()),
+                deprecated: None,
             });
         }
     }
@@ -146,6 +151,7 @@ fn parse_definition(name: &str, val: &Value, types: &mut Vec<TypeDefinition>) {
         name: name.to_string(),
         fields,
         description: val["description"].as_str().map(|s| s.to_string()),
+        deprecated: None,
     }));
 }
 

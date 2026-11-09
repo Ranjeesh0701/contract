@@ -14,14 +14,17 @@ fn create_base_contract() -> Contract {
                         name: "id".to_string(),
                         field_type: Type::Int64,
                         description: None,
+                        deprecated: None,
                     },
                     Field {
                         name: "email".to_string(),
                         field_type: Type::String,
                         description: None,
+                        deprecated: None,
                     },
                 ],
                 description: None,
+                deprecated: None,
             }),
             TypeDefinition::Enum(EnumType {
                 name: "Status".to_string(),
@@ -29,13 +32,16 @@ fn create_base_contract() -> Contract {
                     EnumVariant {
                         name: "Active".to_string(),
                         description: None,
+                        deprecated: None,
                     },
                     EnumVariant {
                         name: "Pending".to_string(),
                         description: None,
+                        deprecated: None,
                     },
                 ],
                 description: None,
+                deprecated: None,
             }),
         ],
         services: vec![],
@@ -62,6 +68,7 @@ fn test_safe_changes_added_optional_field_and_variant() {
             name: "avatar_url".to_string(),
             field_type: Type::Optional(Box::new(Type::String)),
             description: None,
+            deprecated: None,
         });
     }
 
@@ -69,6 +76,7 @@ fn test_safe_changes_added_optional_field_and_variant() {
         enm.variants.push(EnumVariant {
             name: "Suspended".to_string(),
             description: None,
+            deprecated: None,
         });
     }
 
@@ -109,10 +117,33 @@ fn test_breaking_change_added_required_field() {
             name: "phone".to_string(),
             field_type: Type::String,
             description: None,
+            deprecated: None,
         });
     }
 
     let report = diff(&old, &new);
     assert!(!report.is_compatible());
     assert_eq!(report.breaking_changes().len(), 1);
+}
+
+#[test]
+fn test_warning_severity_on_deprecated_field_and_variant() {
+    let old = create_base_contract();
+    let mut new = create_base_contract();
+
+    if let TypeDefinition::Record(ref mut rec) = new.types[0] {
+        rec.fields[1].deprecated = Some("Use new_email instead".to_string());
+    }
+
+    if let TypeDefinition::Enum(ref mut enm) = new.types[1] {
+        enm.variants[1].deprecated = Some("Pending status is being retired".to_string());
+    }
+
+    let report = diff(&old, &new);
+    assert!(report.is_compatible());
+    assert!(report.has_warnings());
+    assert_eq!(report.warnings().len(), 2);
+    assert_eq!(report.breaking_changes().len(), 0);
+    assert!(report.changes[0].message.contains("marked as deprecated"));
+    assert!(report.changes[1].message.contains("marked as deprecated"));
 }

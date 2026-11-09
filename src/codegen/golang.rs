@@ -68,10 +68,25 @@ impl GoGenerator {
         out
     }
 
-    fn generate_alias(alias: &TypeAlias, out: &mut String) {
-        if let Some(ref desc) = alias.description {
-            out.push_str(&format!("// {}\n", desc));
+    fn godoc(indent: &str, desc: Option<&str>, deprecated: Option<&str>) -> String {
+        let mut s = String::new();
+        if let Some(d) = desc {
+            for line in d.lines() {
+                s.push_str(&format!("{}// {}\n", indent, line));
+            }
         }
+        if let Some(dep) = deprecated {
+            s.push_str(&format!("{}// Deprecated: {}\n", indent, dep));
+        }
+        s
+    }
+
+    fn generate_alias(alias: &TypeAlias, out: &mut String) {
+        out.push_str(&Self::godoc(
+            "",
+            alias.description.as_deref(),
+            alias.deprecated.as_deref(),
+        ));
         out.push_str(&format!(
             "type {} = {}\n",
             alias.name,
@@ -80,16 +95,20 @@ impl GoGenerator {
     }
 
     fn generate_enum(enm: &EnumType, out: &mut String) {
-        if let Some(ref desc) = enm.description {
-            out.push_str(&format!("// {}\n", desc));
-        }
+        out.push_str(&Self::godoc(
+            "",
+            enm.description.as_deref(),
+            enm.deprecated.as_deref(),
+        ));
         out.push_str(&format!("type {} string\n\n", enm.name));
         out.push_str("const (\n");
 
         for variant in &enm.variants {
-            if let Some(ref desc) = variant.description {
-                out.push_str(&format!("\t// {}\n", desc));
-            }
+            out.push_str(&Self::godoc(
+                "\t",
+                variant.description.as_deref(),
+                variant.deprecated.as_deref(),
+            ));
             out.push_str(&format!(
                 "\t{}{} {} = \"{}\"\n",
                 enm.name, variant.name, enm.name, variant.name
@@ -100,15 +119,19 @@ impl GoGenerator {
     }
 
     fn generate_record(rec: &Record, out: &mut String) {
-        if let Some(ref desc) = rec.description {
-            out.push_str(&format!("// {}\n", desc));
-        }
+        out.push_str(&Self::godoc(
+            "",
+            rec.description.as_deref(),
+            rec.deprecated.as_deref(),
+        ));
         out.push_str(&format!("type {} struct {{\n", rec.name));
 
         for field in &rec.fields {
-            if let Some(ref desc) = field.description {
-                out.push_str(&format!("\t// {}\n", desc));
-            }
+            out.push_str(&Self::godoc(
+                "\t",
+                field.description.as_deref(),
+                field.deprecated.as_deref(),
+            ));
 
             let field_ident = to_pascal_case(&field.name);
             let go_type = Self::type_to_go(&field.field_type);
@@ -128,15 +151,19 @@ impl GoGenerator {
 
     fn generate_service(service: &Service, out: &mut String) {
         // Interface
-        if let Some(ref desc) = service.description {
-            out.push_str(&format!("// {}\n", desc));
-        }
+        out.push_str(&Self::godoc(
+            "",
+            service.description.as_deref(),
+            service.deprecated.as_deref(),
+        ));
         out.push_str(&format!("type {} interface {{\n", service.name));
 
         for op in &service.operations {
-            if let Some(ref desc) = op.description {
-                out.push_str(&format!("\t// {}\n", desc));
-            }
+            out.push_str(&Self::godoc(
+                "\t",
+                op.description.as_deref(),
+                op.deprecated.as_deref(),
+            ));
 
             let method_name = to_pascal_case(&op.name);
             let input_param = match &op.input {

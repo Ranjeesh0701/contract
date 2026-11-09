@@ -110,10 +110,54 @@ impl Parser {
         }
     }
 
+    fn parse_attributes_and_doc(&mut self) -> Result<(Option<String>, Option<String>), ParseError> {
+        let mut doc: Option<String> = None;
+        let mut deprecated: Option<String> = None;
+
+        loop {
+            while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
+                self.bump();
+            }
+            if let (Token::DocComment(_), _, _) = self.peek() {
+                let d = self.parse_doc_comment();
+                doc = match (doc, d) {
+                    (Some(a), Some(b)) => Some(format!("{}\n{}", a, b)),
+                    (None, Some(b)) => Some(b),
+                    (a, None) => a,
+                };
+                continue;
+            }
+            if let (Token::At, _, _) = self.peek() {
+                self.bump();
+                let attr_name = self.expect_ident()?;
+                if attr_name == "deprecated" {
+                    if let (Token::LParen, _, _) = self.peek() {
+                        self.bump();
+                        let reason = self.expect_string()?;
+                        self.expect(Token::RParen)?;
+                        deprecated = Some(reason);
+                    } else {
+                        deprecated = Some("Deprecated".to_string());
+                    }
+                } else if let (Token::LParen, _, _) = self.peek() {
+                    self.bump();
+                    while !matches!(self.peek().0, Token::RParen | Token::Eof) {
+                        self.bump();
+                    }
+                    self.expect(Token::RParen)?;
+                }
+                continue;
+            }
+            break;
+        }
+
+        Ok((doc, deprecated))
+    }
+
     pub fn parse_contract(&mut self) -> Result<Contract, ParseError> {
         let mut name = "UntitledContract".to_string();
         let mut version = "1.0.0".to_string();
-        let top_doc = self.parse_doc_comment();
+        let (top_doc, top_dep) = self.parse_attributes_and_doc()?;
         let mut description = top_doc;
         let mut types = Vec::new();
         let mut services = Vec::new();
@@ -127,7 +171,7 @@ impl Parser {
                 while matches!(self.peek().0, Token::Semicolon | Token::Comma) {
                     self.bump();
                 }
-                let item_doc = self.parse_doc_comment();
+                let (item_doc, item_dep) = self.parse_attributes_and_doc()?;
                 while matches!(self.peek().0, Token::Semicolon | Token::Comma) {
                     self.bump();
                 }
@@ -139,22 +183,22 @@ impl Parser {
                 match tok.clone() {
                     Token::Model | Token::Record => {
                         self.bump();
-                        let record = self.parse_record(item_doc)?;
+                        let record = self.parse_record(item_doc, item_dep)?;
                         types.push(TypeDefinition::Record(record));
                     }
                     Token::Enum => {
                         self.bump();
-                        let enum_type = self.parse_enum(item_doc)?;
+                        let enum_type = self.parse_enum(item_doc, item_dep)?;
                         types.push(TypeDefinition::Enum(enum_type));
                     }
                     Token::TypeAlias => {
                         self.bump();
-                        let alias = self.parse_alias(item_doc)?;
+                        let alias = self.parse_alias(item_doc, item_dep)?;
                         types.push(TypeDefinition::Alias(alias));
                     }
                     Token::Service => {
                         self.bump();
-                        let service = self.parse_service(item_doc)?;
+                        let service = self.parse_service(item_doc, item_dep)?;
                         services.push(service);
                     }
                     Token::Semicolon | Token::Comma => {
@@ -183,7 +227,7 @@ impl Parser {
             while matches!(self.peek().0, Token::Semicolon | Token::Comma) {
                 self.bump();
             }
-            let item_doc = self.parse_doc_comment();
+            let (item_doc, item_dep) = self.parse_attributes_and_doc()?;
             while matches!(self.peek().0, Token::Semicolon | Token::Comma) {
                 self.bump();
             }
@@ -195,22 +239,22 @@ impl Parser {
             match tok.clone() {
                 Token::Model | Token::Record => {
                     self.bump();
-                    let record = self.parse_record(item_doc)?;
+                    let record = self.parse_record(item_doc, item_dep)?;
                     types.push(TypeDefinition::Record(record));
                 }
                 Token::Enum => {
                     self.bump();
-                    let enum_type = self.parse_enum(item_doc)?;
+                    let enum_type = self.parse_enum(item_doc, item_dep)?;
                     types.push(TypeDefinition::Enum(enum_type));
                 }
                 Token::TypeAlias => {
                     self.bump();
-                    let alias = self.parse_alias(item_doc)?;
+                    let alias = self.parse_alias(item_doc, item_dep)?;
                     types.push(TypeDefinition::Alias(alias));
                 }
                 Token::Service => {
                     self.bump();
-                    let service = self.parse_service(item_doc)?;
+                    let service = self.parse_service(item_doc, item_dep)?;
                     services.push(service);
                 }
                 _ => {
@@ -225,6 +269,7 @@ impl Parser {
             }
         }
 
+        let _ = top_dep; // reserved for contract-level deprecation
         Ok(Contract {
             name,
             version,
@@ -234,7 +279,11 @@ impl Parser {
         })
     }
 
-    fn parse_record(&mut self, description: Option<String>) -> Result<Record, ParseError> {
+    fn parse_record(
+        &mut self,
+        description: Option<String>,
+        deprecated: Option<String>,
+    ) -> Result<Record, ParseError> {
         let name = self.expect_ident()?;
         self.expect(Token::LBrace)?;
 
@@ -243,7 +292,7 @@ impl Parser {
             while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
                 self.bump();
             }
-            let field_doc = self.parse_doc_comment();
+            let (field_doc, field_dep) = self.parse_attributes_and_doc()?;
             while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
                 self.bump();
             }
@@ -261,6 +310,7 @@ impl Parser {
                 name: field_name,
                 field_type,
                 description: field_doc,
+                deprecated: field_dep,
             });
 
             if matches!(self.peek().0, Token::Comma | Token::Semicolon) {
@@ -273,10 +323,15 @@ impl Parser {
             name,
             fields,
             description,
+            deprecated,
         })
     }
 
-    fn parse_enum(&mut self, description: Option<String>) -> Result<EnumType, ParseError> {
+    fn parse_enum(
+        &mut self,
+        description: Option<String>,
+        deprecated: Option<String>,
+    ) -> Result<EnumType, ParseError> {
         let name = self.expect_ident()?;
         self.expect(Token::LBrace)?;
 
@@ -285,7 +340,7 @@ impl Parser {
             while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
                 self.bump();
             }
-            let var_doc = self.parse_doc_comment();
+            let (var_doc, var_dep) = self.parse_attributes_and_doc()?;
             while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
                 self.bump();
             }
@@ -299,6 +354,7 @@ impl Parser {
             variants.push(EnumVariant {
                 name: variant_name,
                 description: var_doc,
+                deprecated: var_dep,
             });
 
             if matches!(self.peek().0, Token::Comma | Token::Semicolon) {
@@ -311,10 +367,15 @@ impl Parser {
             name,
             variants,
             description,
+            deprecated,
         })
     }
 
-    fn parse_alias(&mut self, description: Option<String>) -> Result<TypeAlias, ParseError> {
+    fn parse_alias(
+        &mut self,
+        description: Option<String>,
+        deprecated: Option<String>,
+    ) -> Result<TypeAlias, ParseError> {
         let name = self.expect_ident()?;
         self.expect(Token::Colon)?;
         let target = self.parse_type()?;
@@ -327,10 +388,15 @@ impl Parser {
             name,
             target,
             description,
+            deprecated,
         })
     }
 
-    fn parse_service(&mut self, description: Option<String>) -> Result<Service, ParseError> {
+    fn parse_service(
+        &mut self,
+        description: Option<String>,
+        deprecated: Option<String>,
+    ) -> Result<Service, ParseError> {
         let name = self.expect_ident()?;
         self.expect(Token::LBrace)?;
 
@@ -339,7 +405,7 @@ impl Parser {
             while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
                 self.bump();
             }
-            let op_doc = self.parse_doc_comment();
+            let (op_doc, op_dep) = self.parse_attributes_and_doc()?;
             while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
                 self.bump();
             }
@@ -376,6 +442,7 @@ impl Parser {
                 input,
                 output,
                 description: op_doc,
+                deprecated: op_dep,
             });
 
             if matches!(self.peek().0, Token::Comma | Token::Semicolon) {
@@ -388,6 +455,7 @@ impl Parser {
             name,
             operations,
             description,
+            deprecated,
         })
     }
 

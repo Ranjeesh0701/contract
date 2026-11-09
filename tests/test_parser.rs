@@ -213,3 +213,70 @@ fn test_parse_dsl_docstrings_and_codegen_propagation() {
     assert!(go.contains("// Invoiced line item"));
     assert!(go.contains("// Product SKU identifier"));
 }
+
+#[test]
+fn test_parse_deprecated_annotations() {
+    let source = r#"
+    contract InventoryService {
+        version: "1.0.0"
+
+        @deprecated("Use ProductStatus enum instead")
+        enum OldStatus {
+            @deprecated("Do not use Unknown")
+            Unknown,
+            Known
+        }
+
+        @deprecated("Migrate to ProductItem")
+        model Product {
+            id: String;
+            @deprecated("Use serial_code")
+            legacy_code: String;
+            serial_code: String;
+        }
+
+        service InventoryApi {
+            @deprecated("Use query_products")
+            get_legacy_products(): Void;
+        }
+    }
+    "#;
+
+    let contract = parse(source).expect("Should parse contract with @deprecated annotations");
+    assert_eq!(contract.name, "InventoryService");
+
+    // Enum deprecation
+    let old_status = match &contract.types[0] {
+        contract::ir::TypeDefinition::Enum(e) => e,
+        _ => panic!("Expected enum"),
+    };
+    assert_eq!(
+        old_status.deprecated.as_deref(),
+        Some("Use ProductStatus enum instead")
+    );
+    assert_eq!(
+        old_status.variants[0].deprecated.as_deref(),
+        Some("Do not use Unknown")
+    );
+    assert_eq!(old_status.variants[1].deprecated, None);
+
+    // Model & field deprecation
+    let product = match &contract.types[1] {
+        contract::ir::TypeDefinition::Record(r) => r,
+        _ => panic!("Expected record"),
+    };
+    assert_eq!(
+        product.deprecated.as_deref(),
+        Some("Migrate to ProductItem")
+    );
+    assert_eq!(product.fields[0].deprecated, None);
+    assert_eq!(
+        product.fields[1].deprecated.as_deref(),
+        Some("Use serial_code")
+    );
+    assert_eq!(product.fields[2].deprecated, None);
+
+    // Service operation deprecation
+    let op = &contract.services[0].operations[0];
+    assert_eq!(op.deprecated.as_deref(), Some("Use query_products"));
+}

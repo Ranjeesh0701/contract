@@ -34,15 +34,36 @@ impl RustGenerator {
         out
     }
 
-    fn generate_service(service: &Service, out: &mut String) {
-        if let Some(ref desc) = service.description {
-            out.push_str(&format!("/// {}\n", desc));
+    fn rust_doc_and_dep(indent: &str, desc: Option<&str>, deprecated: Option<&str>) -> String {
+        let mut s = String::new();
+        if let Some(d) = desc {
+            for line in d.lines() {
+                s.push_str(&format!("{}/// {}\n", indent, line));
+            }
         }
+        if let Some(dep) = deprecated {
+            s.push_str(&format!(
+                "{}#[deprecated(note = \"{}\")]\n",
+                indent,
+                dep.replace('"', "\\\"")
+            ));
+        }
+        s
+    }
+
+    fn generate_service(service: &Service, out: &mut String) {
+        out.push_str(&Self::rust_doc_and_dep(
+            "",
+            service.description.as_deref(),
+            service.deprecated.as_deref(),
+        ));
         out.push_str(&format!("pub trait {} {{\n", service.name));
         for op in &service.operations {
-            if let Some(ref desc) = op.description {
-                out.push_str(&format!("    /// {}\n", desc));
-            }
+            out.push_str(&Self::rust_doc_and_dep(
+                "    ",
+                op.description.as_deref(),
+                op.deprecated.as_deref(),
+            ));
             let fn_name = Self::to_snake_case(&op.name);
             let input_param = match &op.input {
                 Some(ty) => format!(", input: {}", Self::type_to_rust(ty)),
@@ -77,9 +98,11 @@ impl RustGenerator {
 
         for op in &service.operations {
             out.push('\n');
-            if let Some(ref desc) = op.description {
-                out.push_str(&format!("    /// {}\n", desc));
-            }
+            out.push_str(&Self::rust_doc_and_dep(
+                "    ",
+                op.description.as_deref(),
+                op.deprecated.as_deref(),
+            ));
             let fn_name = Self::to_snake_case(&op.name);
             let input_param = match &op.input {
                 Some(ty) => format!(", _input: {}", Self::type_to_rust(ty)),
@@ -112,7 +135,10 @@ impl RustGenerator {
         out.push_str(&format!("pub struct {} {{\n", bundle_name));
         for service in &contract.services {
             let field_name = Self::to_snake_case(&service.name);
-            out.push_str(&format!("    pub {}: {}Client,\n", field_name, service.name));
+            out.push_str(&format!(
+                "    pub {}: {}Client,\n",
+                field_name, service.name
+            ));
         }
         out.push_str("}\n\n");
 
@@ -133,17 +159,21 @@ impl RustGenerator {
     }
 
     fn generate_record(rec: &Record, out: &mut String) {
-        if let Some(ref desc) = rec.description {
-            out.push_str(&format!("/// {}\n", desc));
-        }
+        out.push_str(&Self::rust_doc_and_dep(
+            "",
+            rec.description.as_deref(),
+            rec.deprecated.as_deref(),
+        ));
 
         out.push_str("#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]\n");
         out.push_str(&format!("pub struct {} {{\n", rec.name));
 
         for field in &rec.fields {
-            if let Some(ref desc) = field.description {
-                out.push_str(&format!("    /// {}\n", desc));
-            }
+            out.push_str(&Self::rust_doc_and_dep(
+                "    ",
+                field.description.as_deref(),
+                field.deprecated.as_deref(),
+            ));
 
             let field_ident = Self::to_snake_case(&field.name);
             if field_ident != field.name {
@@ -161,17 +191,21 @@ impl RustGenerator {
     }
 
     fn generate_enum(enm: &EnumType, out: &mut String) {
-        if let Some(ref desc) = enm.description {
-            out.push_str(&format!("/// {}\n", desc));
-        }
+        out.push_str(&Self::rust_doc_and_dep(
+            "",
+            enm.description.as_deref(),
+            enm.deprecated.as_deref(),
+        ));
 
         out.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]\n");
         out.push_str(&format!("pub enum {} {{\n", enm.name));
 
         for variant in &enm.variants {
-            if let Some(ref desc) = variant.description {
-                out.push_str(&format!("    /// {}\n", desc));
-            }
+            out.push_str(&Self::rust_doc_and_dep(
+                "    ",
+                variant.description.as_deref(),
+                variant.deprecated.as_deref(),
+            ));
             out.push_str(&format!("    {},\n", variant.name));
         }
 
@@ -179,9 +213,11 @@ impl RustGenerator {
     }
 
     fn generate_alias(alias: &TypeAlias, out: &mut String) {
-        if let Some(ref desc) = alias.description {
-            out.push_str(&format!("/// {}\n", desc));
-        }
+        out.push_str(&Self::rust_doc_and_dep(
+            "",
+            alias.description.as_deref(),
+            alias.deprecated.as_deref(),
+        ));
         out.push_str(&format!(
             "pub type {} = {};\n",
             alias.name,

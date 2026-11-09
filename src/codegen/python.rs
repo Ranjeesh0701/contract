@@ -22,6 +22,7 @@ impl PythonGenerator {
                 matches!(f.field_type, Type::Optional(_))
                     || field_ident != f.name
                     || f.description.is_some()
+                    || f.deprecated.is_some()
             }),
             _ => false,
         });
@@ -175,6 +176,15 @@ impl PythonGenerator {
             }
             if let Some(ref desc) = field.description {
                 field_args.push(format!("description=\"{}\"", desc.replace('"', "\\\"")));
+            }
+            if let Some(ref dep) = field.deprecated {
+                field_args.push("deprecated=True".to_string());
+                if field.description.is_none() {
+                    field_args.push(format!(
+                        "description=\"Deprecated: {}\"",
+                        dep.replace('"', "\\\"")
+                    ));
+                }
             }
 
             if field_args.is_empty() {

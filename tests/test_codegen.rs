@@ -15,13 +15,16 @@ fn sample_contract() -> Contract {
                     EnumVariant {
                         name: "Pending".to_string(),
                         description: Some("Order created, waiting payment".to_string()),
+                        deprecated: None,
                     },
                     EnumVariant {
                         name: "Paid".to_string(),
                         description: None,
+                        deprecated: None,
                     },
                 ],
                 description: Some("Status of an order".to_string()),
+                deprecated: None,
             }),
             TypeDefinition::Record(Record {
                 name: "Order".to_string(),
@@ -30,29 +33,35 @@ fn sample_contract() -> Contract {
                         name: "orderId".to_string(),
                         field_type: Type::String,
                         description: Some("Unique identifier".to_string()),
+                        deprecated: None,
                     },
                     Field {
                         name: "status".to_string(),
                         field_type: Type::Reference("OrderStatus".to_string()),
                         description: None,
+                        deprecated: None,
                     },
                     Field {
                         name: "notes".to_string(),
                         field_type: Type::Optional(Box::new(Type::String)),
                         description: None,
+                        deprecated: None,
                     },
                 ],
                 description: Some("Customer order details".to_string()),
+                deprecated: None,
             }),
         ],
         services: vec![Service {
             name: "OrderService".to_string(),
             description: Some("Order processing operations".to_string()),
+            deprecated: None,
             operations: vec![Operation {
                 name: "GetOrder".to_string(),
                 input: Some(Type::String),
                 output: Some(Type::Reference("Order".to_string())),
                 description: Some("Fetches an order by ID".to_string()),
+                deprecated: None,
             }],
         }],
     }
@@ -124,8 +133,10 @@ fn test_python_codegen_selective_imports() {
             variants: vec![contract::ir::EnumVariant {
                 name: "Active".to_string(),
                 description: None,
+                deprecated: None,
             }],
             description: None,
+            deprecated: None,
         })],
         services: vec![],
     };
@@ -137,6 +148,57 @@ fn test_python_codegen_selective_imports() {
     assert!(!py_code.contains("from typing import Optional"));
     assert!(!py_code.contains("import urllib"));
     assert!(!py_code.contains("from abc import"));
+}
+
+#[test]
+fn test_codegen_deprecation_tags_across_all_languages() {
+    let contract = contract::ir::Contract {
+        name: "LegacyService".to_string(),
+        version: "1.0.0".to_string(),
+        description: None,
+        types: vec![contract::ir::TypeDefinition::Record(contract::ir::Record {
+            name: "LegacyUser".to_string(),
+            fields: vec![contract::ir::Field {
+                name: "oldField".to_string(),
+                field_type: contract::ir::Type::String,
+                description: Some("Old field description".to_string()),
+                deprecated: Some("Use newField instead".to_string()),
+            }],
+            description: None,
+            deprecated: Some("LegacyUser is deprecated".to_string()),
+        })],
+        services: vec![contract::ir::Service {
+            name: "LegacyApi".to_string(),
+            description: None,
+            deprecated: None,
+            operations: vec![contract::ir::Operation {
+                name: "OldCall".to_string(),
+                input: None,
+                output: None,
+                description: None,
+                deprecated: Some("Use NewCall instead".to_string()),
+            }],
+        }],
+    };
+
+    let ts = TypeScriptGenerator::generate(&contract);
+    assert!(ts.contains("@deprecated LegacyUser is deprecated"));
+    assert!(ts.contains("@deprecated Use newField instead"));
+    assert!(ts.contains("@deprecated Use NewCall instead"));
+
+    let py = PythonGenerator::generate(&contract);
+    assert!(py.contains("deprecated=True"));
+    assert!(py.contains("old_field"));
+
+    let go = GoGenerator::generate(&contract);
+    assert!(go.contains("// Deprecated: LegacyUser is deprecated"));
+    assert!(go.contains("// Deprecated: Use newField instead"));
+    assert!(go.contains("// Deprecated: Use NewCall instead"));
+
+    let rust = RustGenerator::generate(&contract);
+    assert!(rust.contains("#[deprecated(note = \"LegacyUser is deprecated\")]"));
+    assert!(rust.contains("#[deprecated(note = \"Use newField instead\")]"));
+    assert!(rust.contains("#[deprecated(note = \"Use NewCall instead\")]"));
 }
 
 #[test]

@@ -59,6 +59,7 @@ pub fn from_openapi_json(json_str: &str) -> Result<Contract, OpenApiError> {
                     .map(|name| EnumVariant {
                         name: sanitize_ident(name),
                         description: None,
+                        deprecated: None,
                     })
                     .collect();
 
@@ -66,6 +67,10 @@ pub fn from_openapi_json(json_str: &str) -> Result<Contract, OpenApiError> {
                     name: schema_name.clone(),
                     variants,
                     description: schema_val["description"].as_str().map(|s| s.to_string()),
+                    deprecated: schema_val["deprecated"]
+                        .as_bool()
+                        .filter(|&b| b)
+                        .map(|_| "Deprecated in OpenAPI".to_string()),
                 }));
             } else {
                 let required_fields: HashSet<&str> = schema_val["required"]
@@ -92,6 +97,10 @@ pub fn from_openapi_json(json_str: &str) -> Result<Contract, OpenApiError> {
                             name: prop_name.clone(),
                             field_type,
                             description: prop_val["description"].as_str().map(|s| s.to_string()),
+                            deprecated: prop_val["deprecated"]
+                                .as_bool()
+                                .filter(|&b| b)
+                                .map(|_| "Deprecated in OpenAPI".to_string()),
                         });
                     }
                 }
@@ -100,6 +109,10 @@ pub fn from_openapi_json(json_str: &str) -> Result<Contract, OpenApiError> {
                     name: schema_name.clone(),
                     fields,
                     description: schema_val["description"].as_str().map(|s| s.to_string()),
+                    deprecated: schema_val["deprecated"]
+                        .as_bool()
+                        .filter(|&b| b)
+                        .map(|_| "Deprecated in OpenAPI".to_string()),
                 }));
             }
         }
@@ -139,6 +152,10 @@ pub fn from_openapi_json(json_str: &str) -> Result<Contract, OpenApiError> {
                             .as_str()
                             .or_else(|| op_val["description"].as_str())
                             .map(|s| s.to_string()),
+                        deprecated: op_val["deprecated"]
+                            .as_bool()
+                            .filter(|&b| b)
+                            .map(|_| "Deprecated in OpenAPI".to_string()),
                     });
                 }
             }
@@ -152,6 +169,7 @@ pub fn from_openapi_json(json_str: &str) -> Result<Contract, OpenApiError> {
             name: format!("{}Api", title),
             operations,
             description: Some("API service operations extracted from OpenAPI".to_string()),
+            deprecated: None,
         }]
     };
 
@@ -240,6 +258,9 @@ pub fn to_openapi_json(contract: &Contract) -> Result<String, OpenApiError> {
                 if let Some(ref desc) = rec.description {
                     schema.insert("description".to_string(), Value::String(desc.clone()));
                 }
+                if rec.deprecated.is_some() {
+                    schema.insert("deprecated".to_string(), Value::Bool(true));
+                }
 
                 let mut properties = serde_json::Map::new();
                 let mut required = Vec::new();
@@ -256,6 +277,9 @@ pub fn to_openapi_json(contract: &Contract) -> Result<String, OpenApiError> {
                     };
                     if let Some(ref desc) = field.description {
                         prop_obj.insert("description".to_string(), Value::String(desc.clone()));
+                    }
+                    if field.deprecated.is_some() {
+                        prop_obj.insert("deprecated".to_string(), Value::Bool(true));
                     }
                     if !is_optional {
                         required.push(Value::String(field.name.clone()));
@@ -274,6 +298,9 @@ pub fn to_openapi_json(contract: &Contract) -> Result<String, OpenApiError> {
                 schema.insert("type".to_string(), Value::String("string".to_string()));
                 if let Some(ref desc) = enm.description {
                     schema.insert("description".to_string(), Value::String(desc.clone()));
+                }
+                if enm.deprecated.is_some() {
+                    schema.insert("deprecated".to_string(), Value::Bool(true));
                 }
                 let variants: Vec<Value> = enm
                     .variants
@@ -295,6 +322,9 @@ pub fn to_openapi_json(contract: &Contract) -> Result<String, OpenApiError> {
                 };
                 if let Some(ref desc) = alias.description {
                     schema.insert("description".to_string(), Value::String(desc.clone()));
+                }
+                if alias.deprecated.is_some() {
+                    schema.insert("deprecated".to_string(), Value::Bool(true));
                 }
                 schemas.insert(alias.name.clone(), Value::Object(schema));
             }
@@ -318,6 +348,9 @@ pub fn to_openapi_json(contract: &Contract) -> Result<String, OpenApiError> {
             operation_obj.insert("operationId".to_string(), Value::String(op.name.clone()));
             if let Some(ref desc) = op.description {
                 operation_obj.insert("summary".to_string(), Value::String(desc.clone()));
+            }
+            if op.deprecated.is_some() {
+                operation_obj.insert("deprecated".to_string(), Value::Bool(true));
             }
 
             if let Some(ref input_ty) = op.input {

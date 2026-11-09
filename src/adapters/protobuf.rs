@@ -288,6 +288,7 @@ impl<'a> ProtoParser<'a> {
                 variants.push(EnumVariant {
                     name: var_name.clone(),
                     description: var_desc,
+                    deprecated: None,
                 });
             } else {
                 *idx += 1;
@@ -302,6 +303,7 @@ impl<'a> ProtoParser<'a> {
             name,
             variants,
             description: desc,
+            deprecated: None,
         })
     }
 
@@ -388,6 +390,7 @@ impl<'a> ProtoParser<'a> {
                 name: field_name,
                 field_type,
                 description: field_desc,
+                deprecated: None,
             });
         }
 
@@ -399,6 +402,7 @@ impl<'a> ProtoParser<'a> {
             name,
             fields,
             description: desc,
+            deprecated: None,
         })
     }
 
@@ -494,6 +498,7 @@ impl<'a> ProtoParser<'a> {
                     input: input_type,
                     output: output_type,
                     description: op_desc,
+                    deprecated: None,
                 });
                 continue;
             }
@@ -508,6 +513,7 @@ impl<'a> ProtoParser<'a> {
             name,
             operations,
             description: desc,
+            deprecated: None,
         })
     }
 }

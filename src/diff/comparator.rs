@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::ir::{Contract, Field, Operation, Service, Type, TypeDefinition};
+use crate::ir::{Contract, EnumVariant, Field, Operation, Service, Type, TypeDefinition};
 
 use crate::diff::change::{Change, DiffReport};
 
@@ -85,6 +85,16 @@ fn diff_type_definition(
 
     match (old_def, new_def) {
         (TypeDefinition::Record(old_rec), TypeDefinition::Record(new_rec)) => {
+            if old_rec.deprecated.is_none() && new_rec.deprecated.is_some() {
+                changes.push(Change::warning(
+                    format!("types.{type_name}"),
+                    format!(
+                        "Record '{type_name}' was marked as deprecated: {}",
+                        new_rec.deprecated.as_deref().unwrap_or("Deprecated")
+                    ),
+                ));
+            }
+
             let old_fields: HashMap<&str, &Field> = old_rec
                 .fields
                 .iter()
@@ -106,6 +116,15 @@ fn diff_type_definition(
                         ));
                     }
                     Some(new_field) => {
+                        if old_field.deprecated.is_none() && new_field.deprecated.is_some() {
+                            changes.push(Change::warning(
+                                format!("types.{type_name}.fields.{field_name}"),
+                                format!(
+                                    "Field '{field_name}' in record '{type_name}' was marked as deprecated: {}",
+                                    new_field.deprecated.as_deref().unwrap_or("Deprecated")
+                                ),
+                            ));
+                        }
                         if old_field.field_type != new_field.field_type {
                             changes.push(Change::breaking(
                                 format!("types.{type_name}.fields.{field_name}"),
@@ -145,10 +164,25 @@ fn diff_type_definition(
         }
 
         (TypeDefinition::Enum(old_enum), TypeDefinition::Enum(new_enum)) => {
+            if old_enum.deprecated.is_none() && new_enum.deprecated.is_some() {
+                changes.push(Change::warning(
+                    format!("types.{type_name}"),
+                    format!(
+                        "Enum '{type_name}' was marked as deprecated: {}",
+                        new_enum.deprecated.as_deref().unwrap_or("Deprecated")
+                    ),
+                ));
+            }
+
             let old_variants: HashSet<&str> =
                 old_enum.variants.iter().map(|v| v.name.as_str()).collect();
             let new_variants: HashSet<&str> =
                 new_enum.variants.iter().map(|v| v.name.as_str()).collect();
+            let new_var_map: HashMap<&str, &EnumVariant> = new_enum
+                .variants
+                .iter()
+                .map(|v| (v.name.as_str(), v))
+                .collect();
 
             for old_var in &old_enum.variants {
                 if !new_variants.contains(old_var.name.as_str()) {
@@ -157,6 +191,18 @@ fn diff_type_definition(
                         format!(
                             "Variant '{}' was removed from enum '{type_name}'",
                             old_var.name
+                        ),
+                    ));
+                } else if let Some(new_var) = new_var_map.get(old_var.name.as_str())
+                    && old_var.deprecated.is_none()
+                    && new_var.deprecated.is_some()
+                {
+                    changes.push(Change::warning(
+                        format!("types.{type_name}.variants.{}", old_var.name),
+                        format!(
+                            "Variant '{}' in enum '{type_name}' was marked as deprecated: {}",
+                            old_var.name,
+                            new_var.deprecated.as_deref().unwrap_or("Deprecated")
                         ),
                     ));
                 }
@@ -173,6 +219,15 @@ fn diff_type_definition(
         }
 
         (TypeDefinition::Alias(old_alias), TypeDefinition::Alias(new_alias)) => {
+            if old_alias.deprecated.is_none() && new_alias.deprecated.is_some() {
+                changes.push(Change::warning(
+                    format!("types.{type_name}"),
+                    format!(
+                        "Type alias '{type_name}' was marked as deprecated: {}",
+                        new_alias.deprecated.as_deref().unwrap_or("Deprecated")
+                    ),
+                ));
+            }
             if old_alias.target != new_alias.target {
                 changes.push(Change::breaking(
                     format!("types.{type_name}"),
@@ -195,6 +250,16 @@ fn diff_type_definition(
 
 fn diff_service(old_svc: &Service, new_svc: &Service, changes: &mut Vec<Change>) {
     let svc_name = &old_svc.name;
+    if old_svc.deprecated.is_none() && new_svc.deprecated.is_some() {
+        changes.push(Change::warning(
+            format!("services.{svc_name}"),
+            format!(
+                "Service '{svc_name}' was marked as deprecated: {}",
+                new_svc.deprecated.as_deref().unwrap_or("Deprecated")
+            ),
+        ));
+    }
+
     let old_ops: HashMap<&str, &Operation> = old_svc
         .operations
         .iter()
@@ -216,6 +281,15 @@ fn diff_service(old_svc: &Service, new_svc: &Service, changes: &mut Vec<Change>)
                 ));
             }
             Some(new_op) => {
+                if old_op.deprecated.is_none() && new_op.deprecated.is_some() {
+                    changes.push(Change::warning(
+                        format!("services.{svc_name}.operations.{op_name}"),
+                        format!(
+                            "Operation '{op_name}' in service '{svc_name}' was marked as deprecated: {}",
+                            new_op.deprecated.as_deref().unwrap_or("Deprecated")
+                        ),
+                    ));
+                }
                 if old_op.input != new_op.input {
                     let old_in = old_op
                         .input

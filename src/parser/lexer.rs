@@ -23,6 +23,7 @@ pub enum Token {
     Comma,
     Semicolon,
     Question,
+    At,
     Lt,
     Gt,
 
@@ -175,6 +176,10 @@ impl<'a> Lexer<'a> {
                 '?' => {
                     self.bump();
                     tokens.push((Token::Question, start_line, start_col));
+                }
+                '@' => {
+                    self.bump();
+                    tokens.push((Token::At, start_line, start_col));
                 }
                 '<' => {
                     self.bump();

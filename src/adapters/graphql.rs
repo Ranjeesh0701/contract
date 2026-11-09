@@ -236,6 +236,7 @@ impl<'a> GraphQLParser<'a> {
                 name: "GraphQLApi".to_string(),
                 operations: all_ops,
                 description: Some("GraphQL API operations".to_string()),
+                deprecated: None,
             });
         }
 
@@ -275,6 +276,7 @@ impl<'a> GraphQLParser<'a> {
                 variants.push(EnumVariant {
                     name: var_name.clone(),
                     description: var_desc,
+                    deprecated: None,
                 });
             }
             *idx += 1;
@@ -288,6 +290,7 @@ impl<'a> GraphQLParser<'a> {
             name,
             variants,
             description: desc,
+            deprecated: None,
         })
     }
 
@@ -318,6 +321,7 @@ impl<'a> GraphQLParser<'a> {
                         name: fname,
                         field_type,
                         description: field_desc,
+                        deprecated: None,
                     });
                     continue;
                 }
@@ -333,6 +337,7 @@ impl<'a> GraphQLParser<'a> {
             name,
             fields,
             description: desc,
+            deprecated: None,
         })
     }
 
@@ -388,6 +393,7 @@ impl<'a> GraphQLParser<'a> {
                         input: input_type,
                         output: Some(output_type),
                         description: op_desc,
+                        deprecated: None,
                     });
                     continue;
                 }

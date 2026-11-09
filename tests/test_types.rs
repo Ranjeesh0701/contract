@@ -21,14 +21,17 @@ fn test_record_definition() {
                 name: "id".to_string(),
                 field_type: Type::Int64,
                 description: Some("The ID of the user.".to_string()),
+                deprecated: None,
             },
             Field {
                 name: "email".to_string(),
                 field_type: Type::Optional(Box::new(Type::String)),
                 description: None,
+                deprecated: None,
             },
         ],
         description: Some("A user record.".to_string()),
+        deprecated: None,
     };
 
     assert_eq!(record.name, "User");
@@ -51,13 +54,16 @@ fn test_enum_definition() {
             EnumVariant {
                 name: "Active".to_string(),
                 description: Some("The item is active.".to_string()),
+                deprecated: None,
             },
             EnumVariant {
                 name: "Pending".to_string(),
                 description: Some("The item is pending.".to_string()),
+                deprecated: None,
             },
         ],
         description: Some("A status enum.".to_string()),
+        deprecated: None,
     };
 
     assert_eq!(enum_type.name, "Status");
@@ -82,11 +88,13 @@ fn test_valid_contract_with_forward_reference_and_service() {
                         name: "id".to_string(),
                         field_type: Type::Int64,
                         description: None,
+                        deprecated: None,
                     },
                     Field {
                         name: "status".to_string(),
                         field_type: Type::Reference("Status".to_string()),
                         description: None,
+                        deprecated: None,
                     },
                     Field {
                         name: "metadata".to_string(),
@@ -95,9 +103,11 @@ fn test_valid_contract_with_forward_reference_and_service() {
                             value: Box::new(Type::String),
                         },
                         description: None,
+                        deprecated: None,
                     },
                 ],
                 description: None,
+                deprecated: None,
             }),
             TypeDefinition::Enum(EnumType {
                 name: "Status".to_string(),
@@ -105,28 +115,34 @@ fn test_valid_contract_with_forward_reference_and_service() {
                     EnumVariant {
                         name: "Active".to_string(),
                         description: None,
+                        deprecated: None,
                     },
                     EnumVariant {
                         name: "Inactive".to_string(),
                         description: None,
+                        deprecated: None,
                     },
                 ],
                 description: None,
+                deprecated: None,
             }),
             TypeDefinition::Alias(TypeAlias {
                 name: "UserId".to_string(),
                 target: Type::Int64,
                 description: None,
+                deprecated: None,
             }),
         ],
         services: vec![Service {
             name: "UserService".to_string(),
             description: Some("Operations on users".to_string()),
+            deprecated: None,
             operations: vec![Operation {
                 name: "GetUser".to_string(),
                 input: Some(Type::Reference("UserId".to_string())),
                 output: Some(Type::Reference("User".to_string())),
                 description: None,
+                deprecated: None,
             }],
         }],
     };
@@ -152,8 +168,10 @@ fn test_contract_unresolved_reference() {
                 name: "address".to_string(),
                 field_type: Type::Optional(Box::new(Type::Reference("Address".to_string()))),
                 description: None,
+                deprecated: None,
             }],
             description: None,
+            deprecated: None,
         })],
         services: vec![],
     };
@@ -182,13 +200,16 @@ fn test_contract_duplicate_variant() {
                 EnumVariant {
                     name: "Active".to_string(),
                     description: None,
+                    deprecated: None,
                 },
                 EnumVariant {
                     name: "Active".to_string(),
                     description: None,
+                    deprecated: None,
                 },
             ],
             description: None,
+            deprecated: None,
         })],
         services: vec![],
     };

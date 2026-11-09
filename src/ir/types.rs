@@ -56,6 +56,8 @@ impl std::fmt::Display for Type {
 pub struct EnumVariant {
     pub name: String,
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -63,6 +65,8 @@ pub struct EnumType {
     pub name: String,
     pub variants: Vec<EnumVariant>,
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,6 +74,8 @@ pub struct Field {
     pub name: String,
     pub field_type: Type,
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -77,6 +83,8 @@ pub struct Record {
     pub name: String,
     pub fields: Vec<Field>,
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -84,6 +92,8 @@ pub struct TypeAlias {
     pub name: String,
     pub target: Type,
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,6 +112,22 @@ impl TypeDefinition {
             TypeDefinition::Alias(a) => &a.name,
         }
     }
+
+    pub fn description(&self) -> Option<&str> {
+        match self {
+            TypeDefinition::Record(r) => r.description.as_deref(),
+            TypeDefinition::Enum(e) => e.description.as_deref(),
+            TypeDefinition::Alias(a) => a.description.as_deref(),
+        }
+    }
+
+    pub fn deprecated(&self) -> Option<&str> {
+        match self {
+            TypeDefinition::Record(r) => r.deprecated.as_deref(),
+            TypeDefinition::Enum(e) => e.deprecated.as_deref(),
+            TypeDefinition::Alias(a) => a.deprecated.as_deref(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,6 +136,8 @@ pub struct Operation {
     pub input: Option<Type>,
     pub output: Option<Type>,
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -117,6 +145,8 @@ pub struct Service {
     pub name: String,
     pub operations: Vec<Operation>,
     pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub deprecated: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Error, Serialize, Deserialize)]

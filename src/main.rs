@@ -30,6 +30,13 @@ enum TargetLang {
     Go,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
+enum DiffFormat {
+    Text,
+    Json,
+    Markdown,
+}
+
 #[derive(Subcommand)]
 enum Commands {
     Check {
@@ -40,6 +47,8 @@ enum Commands {
         new: PathBuf,
         #[arg(long, default_value_t = false)]
         fail_on_breaking: bool,
+        #[arg(short, long, value_enum, default_value = "text")]
+        format: DiffFormat,
     },
     Generate {
         #[arg(short, long)]
@@ -83,7 +92,8 @@ fn main() {
             old,
             new,
             fail_on_breaking,
-        } => handle_diff(old, new, fail_on_breaking),
+            format,
+        } => handle_diff(old, new, fail_on_breaking, format),
         Commands::Generate {
             input,
             lang,
@@ -178,40 +188,92 @@ fn handle_check(file: PathBuf) {
     }
 }
 
-fn handle_diff(old_path: PathBuf, new_path: PathBuf, fail_on_breaking: bool) {
+fn handle_diff(old_path: PathBuf, new_path: PathBuf, fail_on_breaking: bool, format: DiffFormat) {
     let old_contract = read_contract(&old_path);
     let new_contract = read_contract(&new_path);
 
     let report = diff(&old_contract, &new_contract);
+    let breaking_count = report.breaking_changes().len();
+    let warning_count = report.warnings().len();
 
-    if report.changes.is_empty() {
-        println!("✔ No changes detected between contracts.");
-        return;
-    }
-
-    println!("Contract Changes ({} total):\n", report.changes.len());
-
-    let mut breaking_count = 0;
-    for change in &report.changes {
-        let tag = match change.severity {
-            ChangeSeverity::Safe => "[SAFE]    ",
-            ChangeSeverity::Warning => "[WARNING] ",
-            ChangeSeverity::Breaking => {
-                breaking_count += 1;
-                "[BREAKING]"
-            }
-        };
-        println!("  {} {} -> {}", tag, change.path, change.message);
-    }
-
-    println!();
-    if breaking_count > 0 {
-        eprintln!("✖ Found {} breaking change(s)!", breaking_count);
-        if fail_on_breaking {
-            exit(1);
+    match format {
+        DiffFormat::Json => {
+            let json_output = serde_json::json!({
+                "compatible": report.is_compatible(),
+                "total_changes": report.changes.len(),
+                "breaking_count": breaking_count,
+                "warning_count": warning_count,
+                "changes": report.changes,
+            });
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json_output).unwrap_or_else(|_| "{}".to_string())
+            );
         }
-    } else {
-        println!("✔ All changes are backwards-compatible.");
+        DiffFormat::Markdown => {
+            println!("### Contract Diff Report\n");
+            if report.changes.is_empty() {
+                println!("✔ No changes detected between contracts.");
+            } else {
+                let status = if report.has_breaking_changes() {
+                    format!(
+                        "❌ **Breaking Changes Detected** ({} breaking)",
+                        breaking_count
+                    )
+                } else if report.has_warnings() {
+                    format!(
+                        "⚠️ **Backwards-Compatible with Warnings** ({} warning(s))",
+                        warning_count
+                    )
+                } else {
+                    "✔ **Fully Backwards-Compatible**".to_string()
+                };
+                println!("**Status:** {}\n", status);
+                println!("| Severity | Target Path | Change Description |");
+                println!("|---|---|---|");
+                for change in &report.changes {
+                    let icon = match change.severity {
+                        ChangeSeverity::Safe => "🟢 `SAFE`",
+                        ChangeSeverity::Warning => "⚠️ `WARNING`",
+                        ChangeSeverity::Breaking => "❌ `BREAKING`",
+                    };
+                    println!("| {} | `{}` | {} |", icon, change.path, change.message);
+                }
+            }
+        }
+        DiffFormat::Text => {
+            if report.changes.is_empty() {
+                println!("✔ No changes detected between contracts.");
+                return;
+            }
+
+            println!("Contract Changes ({} total):\n", report.changes.len());
+
+            for change in &report.changes {
+                let tag = match change.severity {
+                    ChangeSeverity::Safe => "[SAFE]    ",
+                    ChangeSeverity::Warning => "[WARNING] ",
+                    ChangeSeverity::Breaking => "[BREAKING]",
+                };
+                println!("  {} {} -> {}", tag, change.path, change.message);
+            }
+
+            println!();
+            if breaking_count > 0 {
+                eprintln!("✖ Found {} breaking change(s)!", breaking_count);
+            } else if warning_count > 0 {
+                println!(
+                    "✔ All changes are backwards-compatible ({} deprecation warning(s)).",
+                    warning_count
+                );
+            } else {
+                println!("✔ All changes are backwards-compatible.");
+            }
+        }
+    }
+
+    if breaking_count > 0 && fail_on_breaking {
+        exit(1);
     }
 }
 

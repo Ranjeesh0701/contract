@@ -51,16 +51,37 @@ impl TypeScriptGenerator {
         out
     }
 
-    fn generate_record(rec: &Record, out: &mut String) {
-        if let Some(ref desc) = rec.description {
-            out.push_str(&format!("/**\n * {}\n */\n", desc));
+    fn jsdoc(indent: &str, desc: Option<&str>, deprecated: Option<&str>) -> String {
+        if desc.is_none() && deprecated.is_none() {
+            return String::new();
         }
+        let mut s = format!("{}/**\n", indent);
+        if let Some(d) = desc {
+            for line in d.lines() {
+                s.push_str(&format!("{} * {}\n", indent, line));
+            }
+        }
+        if let Some(dep) = deprecated {
+            s.push_str(&format!("{} * @deprecated {}\n", indent, dep));
+        }
+        s.push_str(&format!("{} */\n", indent));
+        s
+    }
+
+    fn generate_record(rec: &Record, out: &mut String) {
+        out.push_str(&Self::jsdoc(
+            "",
+            rec.description.as_deref(),
+            rec.deprecated.as_deref(),
+        ));
         out.push_str(&format!("export interface {} {{\n", rec.name));
 
         for field in &rec.fields {
-            if let Some(ref desc) = field.description {
-                out.push_str(&format!("  /**\n   * {}\n   */\n", desc));
-            }
+            out.push_str(&Self::jsdoc(
+                "  ",
+                field.description.as_deref(),
+                field.deprecated.as_deref(),
+            ));
 
             let (is_optional, type_str) = match &field.field_type {
                 Type::Optional(inner) => (true, Self::type_to_ts(inner)),
@@ -75,9 +96,11 @@ impl TypeScriptGenerator {
     }
 
     fn generate_enum(enm: &EnumType, out: &mut String) {
-        if let Some(ref desc) = enm.description {
-            out.push_str(&format!("/**\n * {}\n */\n", desc));
-        }
+        out.push_str(&Self::jsdoc(
+            "",
+            enm.description.as_deref(),
+            enm.deprecated.as_deref(),
+        ));
         out.push_str(&format!("export type {} =\n", enm.name));
 
         for (i, variant) in enm.variants.iter().enumerate() {
@@ -88,9 +111,11 @@ impl TypeScriptGenerator {
     }
 
     fn generate_alias(alias: &TypeAlias, out: &mut String) {
-        if let Some(ref desc) = alias.description {
-            out.push_str(&format!("/**\n * {}\n */\n", desc));
-        }
+        out.push_str(&Self::jsdoc(
+            "",
+            alias.description.as_deref(),
+            alias.deprecated.as_deref(),
+        ));
         out.push_str(&format!(
             "export type {} = {};\n",
             alias.name,
@@ -99,15 +124,19 @@ impl TypeScriptGenerator {
     }
 
     fn generate_service(service: &Service, out: &mut String) {
-        if let Some(ref desc) = service.description {
-            out.push_str(&format!("/**\n * {}\n */\n", desc));
-        }
+        out.push_str(&Self::jsdoc(
+            "",
+            service.description.as_deref(),
+            service.deprecated.as_deref(),
+        ));
         out.push_str(&format!("export interface {} {{\n", service.name));
 
         for op in &service.operations {
-            if let Some(ref desc) = op.description {
-                out.push_str(&format!("  /**\n   * {}\n   */\n", desc));
-            }
+            out.push_str(&Self::jsdoc(
+                "  ",
+                op.description.as_deref(),
+                op.deprecated.as_deref(),
+            ));
 
             let input_param = match &op.input {
                 Some(ty) => format!("input: {}", Self::type_to_ts(ty)),
