@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::ir::{Contract, EnumVariant, Field, Operation, Service, Type, TypeDefinition};
 
@@ -32,45 +32,49 @@ pub fn collect_type_roles(contract: &Contract) -> HashMap<String, TypeRole> {
         }
     }
 
-    // 2. Propagate transitively through records and aliases
-    let mut changed = true;
-    while changed {
-        changed = false;
-        for type_def in &contract.types {
-            let name = type_def.name();
-            let is_input = input_types.contains(name);
-            let is_output = output_types.contains(name);
-
-            if !is_input && !is_output {
-                continue;
+    // 2. Precompute reference dependencies once and propagate via worklists
+    let mut dependencies: HashMap<&str, Vec<String>> =
+        HashMap::with_capacity(contract.types.len());
+    for type_def in &contract.types {
+        let mut refs = Vec::new();
+        match type_def {
+            TypeDefinition::Record(r) => {
+                for f in &r.fields {
+                    f.field_type.collect_references(&mut refs);
+                }
             }
-
-            let mut nested_refs = Vec::new();
-            match type_def {
-                TypeDefinition::Record(r) => {
-                    for f in &r.fields {
-                        f.field_type.collect_references(&mut nested_refs);
-                    }
-                }
-                TypeDefinition::Alias(a) => {
-                    a.target.collect_references(&mut nested_refs);
-                }
-                TypeDefinition::Enum(_) => {}
+            TypeDefinition::Alias(a) => {
+                a.target.collect_references(&mut refs);
             }
+            TypeDefinition::Enum(_) => {}
+        }
+        dependencies.insert(type_def.name(), refs);
+    }
 
-            for ref_name in nested_refs {
-                if is_input && input_types.insert(ref_name.clone()) {
-                    changed = true;
+    let mut in_queue: VecDeque<String> = input_types.iter().cloned().collect();
+    while let Some(curr) = in_queue.pop_front() {
+        if let Some(deps) = dependencies.get(curr.as_str()) {
+            for dep in deps {
+                if input_types.insert(dep.clone()) {
+                    in_queue.push_back(dep.clone());
                 }
-                if is_output && output_types.insert(ref_name) {
-                    changed = true;
+            }
+        }
+    }
+
+    let mut out_queue: VecDeque<String> = output_types.iter().cloned().collect();
+    while let Some(curr) = out_queue.pop_front() {
+        if let Some(deps) = dependencies.get(curr.as_str()) {
+            for dep in deps {
+                if output_types.insert(dep.clone()) {
+                    out_queue.push_back(dep.clone());
                 }
             }
         }
     }
 
     // 3. Classify roles for all defined types
-    let mut roles = HashMap::new();
+    let mut roles = HashMap::with_capacity(contract.types.len());
     for type_def in &contract.types {
         let name = type_def.name().to_string();
         let in_scope = input_types.contains(&name);

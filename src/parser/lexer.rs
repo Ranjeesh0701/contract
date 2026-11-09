@@ -57,7 +57,7 @@ impl<'a> Lexer<'a> {
     }
 
     pub fn tokenize(&mut self) -> Result<Vec<(Token, usize, usize)>, LexerError> {
-        let mut tokens = Vec::new();
+        let mut tokens = Vec::with_capacity(self.source.len() / 8);
 
         while let Some(&(idx, ch)) = self.chars.peek() {
             let start_line = self.line;

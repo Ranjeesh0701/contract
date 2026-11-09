@@ -4,7 +4,7 @@ pub struct PythonGenerator;
 
 impl PythonGenerator {
     pub fn generate(contract: &Contract) -> String {
-        let mut out = String::new();
+        let mut out = String::with_capacity(1024);
 
         let has_enums = contract
             .types

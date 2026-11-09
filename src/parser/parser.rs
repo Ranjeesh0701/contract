@@ -43,65 +43,73 @@ impl Parser {
     }
 
     fn bump(&mut self) -> (Token, usize, usize) {
-        let tok = self.peek().clone();
         if self.pos < self.tokens.len() {
+            let tok = std::mem::replace(&mut self.tokens[self.pos], (Token::Eof, 0, 0));
             self.pos += 1;
+            tok
+        } else {
+            (Token::Eof, 0, 0)
         }
-        tok
     }
 
     fn expect(&mut self, expected: Token) -> Result<(), ParseError> {
-        let (tok, line, col) = self.peek().clone();
-        if tok == expected {
+        let (tok, line, col) = self.peek();
+        if tok == &expected {
             self.bump();
             Ok(())
         } else {
             Err(ParseError::UnexpectedToken {
                 expected: format!("{:?}", expected),
-                found: tok,
-                line,
-                col,
+                found: tok.clone(),
+                line: *line,
+                col: *col,
             })
         }
     }
 
     fn expect_ident(&mut self) -> Result<String, ParseError> {
-        let (tok, line, col) = self.peek().clone();
+        let (tok, line, col) = self.peek();
         match tok {
-            Token::Ident(s) => {
-                self.bump();
+            Token::Ident(_) => {
+                let (Token::Ident(s), _, _) = self.bump() else {
+                    unreachable!()
+                };
                 Ok(s)
             }
             other => Err(ParseError::UnexpectedToken {
                 expected: "identifier".to_string(),
-                found: other,
-                line,
-                col,
+                found: other.clone(),
+                line: *line,
+                col: *col,
             }),
         }
     }
 
     fn expect_string(&mut self) -> Result<String, ParseError> {
-        let (tok, line, col) = self.peek().clone();
+        let (tok, line, col) = self.peek();
         match tok {
-            Token::StringLit(s) => {
-                self.bump();
+            Token::StringLit(_) => {
+                let (Token::StringLit(s), _, _) = self.bump() else {
+                    unreachable!()
+                };
                 Ok(s)
             }
             other => Err(ParseError::UnexpectedToken {
                 expected: "string literal".to_string(),
-                found: other,
-                line,
-                col,
+                found: other.clone(),
+                line: *line,
+                col: *col,
             }),
         }
     }
 
     fn parse_doc_comment(&mut self) -> Option<String> {
         let mut docs = Vec::new();
-        while let (Token::DocComment(doc), _, _) = self.peek() {
-            docs.push(doc.clone());
-            self.bump();
+        while let (Token::DocComment(_), _, _) = self.peek() {
+            let (Token::DocComment(doc), _, _) = self.bump() else {
+                unreachable!()
+            };
+            docs.push(doc);
         }
         if docs.is_empty() {
             None
@@ -197,7 +205,7 @@ impl Parser {
                 if tok == &Token::RBrace || tok == &Token::Eof {
                     break;
                 }
-                match tok.clone() {
+                match tok {
                     Token::Import => {
                         self.bump();
                         let path = self.expect_string()?;
@@ -261,7 +269,7 @@ impl Parser {
             if tok == &Token::Eof {
                 break;
             }
-            match tok.clone() {
+            match tok {
                 Token::Import => {
                     self.bump();
                     let path = self.expect_string()?;
@@ -494,8 +502,8 @@ impl Parser {
     }
 
     fn parse_type(&mut self) -> Result<Type, ParseError> {
-        let mut base_ty = match self.peek().0.clone() {
-            Token::Ident(ref id) => match id.as_str() {
+        let mut base_ty = match &self.peek().0 {
+            Token::Ident(id) => match id.as_str() {
                 "Bool" | "bool" | "Boolean" => {
                     self.bump();
                     Type::Bool
@@ -538,12 +546,12 @@ impl Parser {
                 }
             },
             other => {
-                let (_, line, col) = self.peek().clone();
+                let (_, line, col) = self.peek();
                 return Err(ParseError::UnexpectedToken {
                     expected: "type name".to_string(),
-                    found: other,
-                    line,
-                    col,
+                    found: other.clone(),
+                    line: *line,
+                    col: *col,
                 });
             }
         };

@@ -200,8 +200,8 @@ impl ContractGraph {
         affected_types.insert(root_type.clone());
 
         // Queue holds: (current_type, depth, traversal_path)
-        let mut queue = VecDeque::new();
-        let mut visited_types = HashSet::new();
+        let mut queue = VecDeque::with_capacity(16);
+        let mut visited_types = HashSet::with_capacity(16);
         visited_types.insert(root_type.clone());
 
         queue.push_back((root_type.clone(), 0, vec![start_path]));
