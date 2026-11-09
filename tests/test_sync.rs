@@ -13,7 +13,6 @@ fn setup_temp_workspace() -> PathBuf {
 fn test_sync_and_drift_detection() {
     let temp_dir = setup_temp_workspace();
 
-    // 1. Create upstream service schema
     let upstream_schema = r#"
     contract UserService {
         version: "1.0.0"
@@ -47,21 +46,17 @@ fn test_sync_and_drift_detection() {
     let manifest_path = temp_dir.join("contract.toml");
     fs::write(&manifest_path, manifest_content).unwrap();
 
-    // 3. Run sync
     let report = SyncEngine::sync(&temp_dir, false).expect("Sync should succeed");
     assert_eq!(report.synced_contracts.len(), 1);
     assert_eq!(report.generated_files.len(), 1);
 
-    // Verify lockfile was written
     let lockfile_path = temp_dir.join("contract.lock");
     assert!(lockfile_path.exists());
 
-    // Verify TypeScript client was generated
     let generated_ts = fs::read_to_string(temp_dir.join("generated/users.ts")).unwrap();
     assert!(generated_ts.contains("export interface User {"));
     assert!(generated_ts.contains("export class UserApiClient"));
 
-    // 4. Test drift: currently UpToDate
     let drift_reports = SyncEngine::check_drift(&temp_dir).unwrap();
     assert_eq!(drift_reports.len(), 1);
     match &drift_reports[0].status {
@@ -69,7 +64,6 @@ fn test_sync_and_drift_detection() {
         _ => panic!("Expected UpToDate"),
     }
 
-    // 5. Update upstream with safe change (new optional field)
     let updated_schema = r#"
     contract UserService {
         version: "1.1.0"
@@ -87,7 +81,6 @@ fn test_sync_and_drift_detection() {
     "#;
     fs::write(&upstream_path, updated_schema).unwrap();
 
-    // 6. Test drift: should detect safe drift
     let drift_reports2 = SyncEngine::check_drift(&temp_dir).unwrap();
     match &drift_reports2[0].status {
         DriftStatus::Drifted { is_breaking, .. } => {
@@ -96,7 +89,101 @@ fn test_sync_and_drift_detection() {
         _ => panic!("Expected Drifted status"),
     }
 
-    // Clean up
+    let _ = fs::remove_dir_all(temp_dir);
+}
+
+#[test]
+fn test_artifact_integrity_and_tamper_detection() {
+    let temp_dir = std::env::temp_dir().join(format!(
+        "contract_artifact_integrity_test_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    fs::create_dir_all(&temp_dir).unwrap();
+
+    let contract_dsl = r#"
+    contract OrderService {
+        version: "1.0.0"
+    }
+
+    model Order {
+        id: String
+        amount: Float64
+    }
+    "#;
+    let contract_path = temp_dir.join("orders.contract");
+    fs::write(&contract_path, contract_dsl).unwrap();
+
+    let manifest_content = r#"
+    [project]
+    name = "orders-app"
+
+    [dependencies]
+    orders = { path = "orders.contract" }
+
+    [[generate]]
+    contract = "orders"
+    lang = "ts"
+    out = "src/sdk/orders.ts"
+    "#;
+    let manifest_path = temp_dir.join("contract.toml");
+    fs::write(&manifest_path, manifest_content).unwrap();
+
+    let report = SyncEngine::sync(&temp_dir, false).expect("Sync should succeed");
+    assert_eq!(report.generated_files.len(), 1);
+
+    let lockfile =
+        contract::sync::Lockfile::load_from_file(temp_dir.join("contract.lock")).unwrap();
+    assert_eq!(lockfile.artifacts.len(), 1);
+    let locked_art = lockfile
+        .artifacts
+        .get("src/sdk/orders.ts")
+        .expect("Artifact should be locked");
+    assert_eq!(locked_art.contract, "orders");
+    assert_eq!(locked_art.lang, "ts");
+    assert!(!locked_art.sha256.is_empty());
+
+    let art_reports = SyncEngine::check_artifacts(&temp_dir).unwrap();
+    assert_eq!(art_reports.len(), 1);
+    assert_eq!(
+        art_reports[0].status,
+        contract::sync::ArtifactDriftStatus::UpToDate
+    );
+
+    let generated_file = temp_dir.join("src/sdk/orders.ts");
+    fs::write(&generated_file, "// Tampered content by rogue process").unwrap();
+
+    let tampered_reports = SyncEngine::check_artifacts(&temp_dir).unwrap();
+    assert_eq!(tampered_reports.len(), 1);
+    match &tampered_reports[0].status {
+        contract::sync::ArtifactDriftStatus::Modified {
+            expected_sha256,
+            actual_sha256,
+        } => {
+            assert_eq!(expected_sha256, &locked_art.sha256);
+            assert_ne!(expected_sha256, actual_sha256);
+        }
+        other => panic!("Expected Modified status, got {:?}", other),
+    }
+
+    fs::remove_file(&generated_file).unwrap();
+    let missing_reports = SyncEngine::check_artifacts(&temp_dir).unwrap();
+    assert_eq!(missing_reports.len(), 1);
+    assert_eq!(
+        missing_reports[0].status,
+        contract::sync::ArtifactDriftStatus::MissingOnDisk
+    );
+
+    SyncEngine::sync(&temp_dir, false).expect("Resync should succeed");
+    assert!(generated_file.exists());
+    let restored_reports = SyncEngine::check_artifacts(&temp_dir).unwrap();
+    assert_eq!(
+        restored_reports[0].status,
+        contract::sync::ArtifactDriftStatus::UpToDate
+    );
+
     let _ = fs::remove_dir_all(temp_dir);
 }
 
@@ -173,7 +260,8 @@ fn test_sync_with_extension_based_proto_dependency() {
     let manifest_path = temp_dir.join("contract.toml");
     fs::write(&manifest_path, manifest_content).unwrap();
 
-    let report = SyncEngine::sync(&temp_dir, false).expect("Sync should succeed for proto dependency");
+    let report =
+        SyncEngine::sync(&temp_dir, false).expect("Sync should succeed for proto dependency");
     assert_eq!(report.synced_contracts.len(), 1);
     assert_eq!(report.generated_files.len(), 1);
 

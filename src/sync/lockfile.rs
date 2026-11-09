@@ -23,10 +23,20 @@ pub struct LockedContract {
     pub contract: Contract,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LockedArtifact {
+    pub contract: String,
+    pub lang: String,
+    pub path: String,
+    pub sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Lockfile {
     pub version: u32,
     pub contracts: BTreeMap<String, LockedContract>,
+    #[serde(default)]
+    pub artifacts: BTreeMap<String, LockedArtifact>,
 }
 
 impl Default for Lockfile {
@@ -34,6 +44,7 @@ impl Default for Lockfile {
         Self {
             version: 1,
             contracts: BTreeMap::new(),
+            artifacts: BTreeMap::new(),
         }
     }
 }

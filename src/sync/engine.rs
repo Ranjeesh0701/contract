@@ -55,6 +55,23 @@ pub struct DriftReport {
     pub status: DriftStatus,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ArtifactDriftStatus {
+    UpToDate,
+    Modified {
+        expected_sha256: String,
+        actual_sha256: String,
+    },
+    MissingOnDisk,
+    MissingInLockfile,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ArtifactDriftReport {
+    pub target: crate::sync::manifest::GenerateTarget,
+    pub status: ArtifactDriftStatus,
+}
+
 pub struct SyncEngine;
 
 impl SyncEngine {
@@ -100,8 +117,7 @@ impl SyncEngine {
             synced_contracts.push(dep_name.clone());
         }
 
-        lockfile.save_to_file(&lockfile_path)?;
-
+        let mut locked_artifacts = std::collections::BTreeMap::new();
         for target in &manifest.generate {
             let locked = lockfile
                 .contracts
@@ -121,9 +137,26 @@ impl SyncEngine {
                 fs::create_dir_all(parent).map_err(|e| SyncError::Io(parent.to_path_buf(), e))?;
             }
 
-            fs::write(&out_path, code).map_err(|e| SyncError::Io(out_path.clone(), e))?;
+            fs::write(&out_path, &code).map_err(|e| SyncError::Io(out_path.clone(), e))?;
             generated_files.push(out_path);
+
+            let mut hasher = Sha256::new();
+            hasher.update(code.as_bytes());
+            let artifact_sha = format!("{:x}", hasher.finalize());
+
+            locked_artifacts.insert(
+                target.out.clone(),
+                crate::sync::lockfile::LockedArtifact {
+                    contract: target.contract.clone(),
+                    lang: target.lang.clone(),
+                    path: target.out.clone(),
+                    sha256: artifact_sha,
+                },
+            );
         }
+
+        lockfile.artifacts = locked_artifacts;
+        lockfile.save_to_file(&lockfile_path)?;
 
         Ok(SyncReport {
             synced_contracts,
@@ -165,6 +198,63 @@ impl SyncEngine {
                             status: DriftStatus::Drifted {
                                 report: diff_report,
                                 is_breaking,
+                            },
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(reports)
+    }
+
+    pub fn check_artifacts(manifest_dir: &Path) -> Result<Vec<ArtifactDriftReport>, SyncError> {
+        let manifest_path = manifest_dir.join("contract.toml");
+        let lockfile_path = manifest_dir.join("contract.lock");
+
+        let manifest = Manifest::load_from_file(&manifest_path)?;
+        let lockfile = Lockfile::load_from_file(&lockfile_path)?;
+
+        let mut reports = Vec::new();
+
+        for target in &manifest.generate {
+            let out_path = manifest_dir.join(&target.out);
+            if !out_path.exists() {
+                reports.push(ArtifactDriftReport {
+                    target: target.clone(),
+                    status: ArtifactDriftStatus::MissingOnDisk,
+                });
+                continue;
+            }
+
+            let content = match fs::read_to_string(&out_path) {
+                Ok(c) => c,
+                Err(e) => return Err(SyncError::Io(out_path, e)),
+            };
+
+            let mut hasher = Sha256::new();
+            hasher.update(content.as_bytes());
+            let current_sha = format!("{:x}", hasher.finalize());
+
+            match lockfile.artifacts.get(&target.out) {
+                None => {
+                    reports.push(ArtifactDriftReport {
+                        target: target.clone(),
+                        status: ArtifactDriftStatus::MissingInLockfile,
+                    });
+                }
+                Some(locked) => {
+                    if locked.sha256 == current_sha {
+                        reports.push(ArtifactDriftReport {
+                            target: target.clone(),
+                            status: ArtifactDriftStatus::UpToDate,
+                        });
+                    } else {
+                        reports.push(ArtifactDriftReport {
+                            target: target.clone(),
+                            status: ArtifactDriftStatus::Modified {
+                                expected_sha256: locked.sha256.clone(),
+                                actual_sha256: current_sha,
                             },
                         });
                     }

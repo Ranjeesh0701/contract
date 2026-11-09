@@ -347,5 +347,37 @@
         ]
       }
     }
+  },
+  "artifacts": {
+    "src/api/pets.py": {
+      "contract": "pets",
+      "lang": "python",
+      "path": "src/api/pets.py",
+      "sha256": "a2df22280b5ed2d78b485d14de8da1cba2c2f5720b90b0ae18849086d8c0f72d"
+    },
+    "src/api/pets.ts": {
+      "contract": "pets",
+      "lang": "ts",
+      "path": "src/api/pets.ts",
+      "sha256": "df3fb830efcf80b2765cdab547d517f9581a93c11c4c529313c3a172de3c03f8"
+    },
+    "src/api/store.go": {
+      "contract": "store",
+      "lang": "go",
+      "path": "src/api/store.go",
+      "sha256": "5685204012b07df0e32834385df5db6e33b857c34d2583a3f6bcb6448177328d"
+    },
+    "src/api/store.py": {
+      "contract": "store",
+      "lang": "python",
+      "path": "src/api/store.py",
+      "sha256": "5b374a76bacfaa9c98f96a6af1e3f7691fced2df878684418c9d92df9ae348bb"
+    },
+    "src/api/store.ts": {
+      "contract": "store",
+      "lang": "ts",
+      "path": "src/api/store.ts",
+      "sha256": "51210ae9103d9ca2f3472da10578405701652b71127f9ee2cec5e9531319f7b9"
+    }
   }
 }

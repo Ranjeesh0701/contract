@@ -331,55 +331,94 @@ fn handle_sync(force: bool) {
 fn handle_drift() {
     let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
-    match contract::sync::SyncEngine::check_drift(&current_dir) {
-        Ok(reports) => {
-            let mut has_breaking = false;
-            let mut has_drift = false;
-
-            for r in &reports {
-                match &r.status {
-                    contract::sync::DriftStatus::UpToDate => {
-                        println!("✔ Dependency '{}' is up to date.", r.dependency);
-                    }
-                    contract::sync::DriftStatus::MissingInLockfile => {
-                        has_drift = true;
-                        println!(
-                            "⚠ Dependency '{}' is missing in lockfile. Run 'contract sync'.",
-                            r.dependency
-                        );
-                    }
-                    contract::sync::DriftStatus::Drifted {
-                        report,
-                        is_breaking,
-                    } => {
-                        has_drift = true;
-                        if *is_breaking {
-                            has_breaking = true;
-                            eprintln!(
-                                "✖ Dependency '{}' has drifted with BREAKING changes! ({} breaking)",
-                                r.dependency,
-                                report.breaking_changes().len()
-                            );
-                        } else {
-                            println!(
-                                "ℹ Dependency '{}' has safe upstream updates. ({} changes)",
-                                r.dependency,
-                                report.changes.len()
-                            );
-                        }
-                    }
-                }
-            }
-
-            if has_breaking {
-                exit(1);
-            } else if has_drift {
-                println!("\nRun 'contract sync' to update local locks and regenerate clients.");
-            }
-        }
+    let dep_reports = match contract::sync::SyncEngine::check_drift(&current_dir) {
+        Ok(reports) => reports,
         Err(e) => {
-            eprintln!("✖ Drift check failed: {}", e);
+            eprintln!("✖ Dependency drift check failed: {}", e);
             exit(1);
         }
+    };
+
+    let artifact_reports = match contract::sync::SyncEngine::check_artifacts(&current_dir) {
+        Ok(reports) => reports,
+        Err(e) => {
+            eprintln!("✖ Artifact drift check failed: {}", e);
+            exit(1);
+        }
+    };
+
+    let mut has_breaking = false;
+    let mut has_drift = false;
+
+    for r in &dep_reports {
+        match &r.status {
+            contract::sync::DriftStatus::UpToDate => {
+                println!("✔ Dependency '{}' is up to date.", r.dependency);
+            }
+            contract::sync::DriftStatus::MissingInLockfile => {
+                has_drift = true;
+                println!(
+                    "⚠ Dependency '{}' is missing in lockfile. Run 'contract sync'.",
+                    r.dependency
+                );
+            }
+            contract::sync::DriftStatus::Drifted {
+                report,
+                is_breaking,
+            } => {
+                has_drift = true;
+                if *is_breaking {
+                    has_breaking = true;
+                    eprintln!(
+                        "✖ Dependency '{}' has drifted with BREAKING changes! ({} breaking)",
+                        r.dependency,
+                        report.breaking_changes().len()
+                    );
+                } else {
+                    println!(
+                        "ℹ Dependency '{}' has safe upstream updates. ({} changes)",
+                        r.dependency,
+                        report.changes.len()
+                    );
+                }
+            }
+        }
+    }
+
+    for ar in &artifact_reports {
+        match &ar.status {
+            contract::sync::ArtifactDriftStatus::UpToDate => {
+                println!("✔ Artifact '{}' is intact and matches lockfile.", ar.target.out);
+            }
+            contract::sync::ArtifactDriftStatus::MissingOnDisk => {
+                has_breaking = true;
+                has_drift = true;
+                eprintln!(
+                    "✖ Artifact '{}' is missing on disk! Run 'contract sync' to generate.",
+                    ar.target.out
+                );
+            }
+            contract::sync::ArtifactDriftStatus::Modified { expected_sha256: _, actual_sha256: _ } => {
+                has_breaking = true;
+                has_drift = true;
+                eprintln!(
+                    "✖ Artifact '{}' was manually modified or tampered! Run 'contract sync' to restore.",
+                    ar.target.out
+                );
+            }
+            contract::sync::ArtifactDriftStatus::MissingInLockfile => {
+                has_drift = true;
+                println!(
+                    "⚠ Artifact '{}' is not recorded in lockfile. Run 'contract sync'.",
+                    ar.target.out
+                );
+            }
+        }
+    }
+
+    if has_breaking {
+        exit(1);
+    } else if has_drift {
+        println!("\nRun 'contract sync' to update local locks and regenerate clients.");
     }
 }
