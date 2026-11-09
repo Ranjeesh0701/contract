@@ -99,3 +99,87 @@ fn test_sync_and_drift_detection() {
     // Clean up
     let _ = fs::remove_dir_all(temp_dir);
 }
+
+#[test]
+fn test_manifest_output_alias_compatibility() {
+    let toml_with_output = r#"
+    [project]
+    name = "alias-test"
+
+    [dependencies]
+    auth = { path = "auth.contract" }
+
+    [[generate]]
+    contract = "auth"
+    lang = "typescript"
+    output = "src/sdk/auth.ts"
+
+    [[generate]]
+    contract = "auth"
+    lang = "python"
+    out = "clients/auth.py"
+    "#;
+
+    let manifest: contract::sync::Manifest =
+        toml::from_str(toml_with_output).expect("Should parse manifest with out/output aliases");
+
+    assert_eq!(manifest.generate.len(), 2);
+    assert_eq!(manifest.generate[0].out, "src/sdk/auth.ts");
+    assert_eq!(manifest.generate[1].out, "clients/auth.py");
+}
+
+#[test]
+fn test_sync_with_extension_based_proto_dependency() {
+    let temp_dir = std::env::temp_dir().join(format!(
+        "contract_sync_proto_test_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    fs::create_dir_all(&temp_dir).unwrap();
+
+    let proto_schema = r#"
+    syntax = "proto3";
+    package greeter;
+
+    message HelloRequest {
+        string name = 1;
+    }
+
+    message HelloReply {
+        string message = 1;
+    }
+
+    service Greeter {
+        rpc SayHello (HelloRequest) returns (HelloReply);
+    }
+    "#;
+    let proto_path = temp_dir.join("service.proto");
+    fs::write(&proto_path, proto_schema).unwrap();
+
+    let manifest_content = r#"
+    [project]
+    name = "greeter-client"
+
+    [dependencies]
+    greeter = { path = "service.proto" }
+
+    [[generate]]
+    contract = "greeter"
+    lang = "ts"
+    output = "generated/greeter.ts"
+    "#;
+    let manifest_path = temp_dir.join("contract.toml");
+    fs::write(&manifest_path, manifest_content).unwrap();
+
+    let report = SyncEngine::sync(&temp_dir, false).expect("Sync should succeed for proto dependency");
+    assert_eq!(report.synced_contracts.len(), 1);
+    assert_eq!(report.generated_files.len(), 1);
+
+    let generated_ts = fs::read_to_string(temp_dir.join("generated/greeter.ts")).unwrap();
+    assert!(generated_ts.contains("export interface HelloRequest"));
+    assert!(generated_ts.contains("export interface HelloReply"));
+
+    let _ = fs::remove_dir_all(temp_dir);
+}

@@ -180,20 +180,20 @@ impl SyncEngine {
         dep_name: &str,
         source: &DependencySource,
     ) -> Result<(Contract, String, String), SyncError> {
-        let (content, desc) = match source {
+        let (content, desc, source_path) = match source {
             DependencySource::Path { path } => {
                 let full_path = base_dir.join(path);
                 let text = fs::read_to_string(&full_path)
                     .map_err(|e| SyncError::Io(full_path.clone(), e))?;
-                (text, format!("path:{}", path))
+                (text, format!("path:{}", path), Some(full_path))
             }
             DependencySource::Url { url } => {
                 // For file/local simulation or HTTP
-                (String::new(), format!("url:{}", url))
+                (String::new(), format!("url:{}", url), None)
             }
             DependencySource::Git { git, path, branch } => {
                 let b = branch.as_deref().unwrap_or("main");
-                (String::new(), format!("git:{}#{}:{}", git, b, path))
+                (String::new(), format!("git:{}#{}:{}", git, b, path), None)
             }
         };
 
@@ -202,7 +202,9 @@ impl SyncEngine {
         let sha256 = format!("{:x}", hasher.finalize());
 
         let adapter_reg = adapters::default_registry();
-        let contract = if let Some(adapter) = adapter_reg.find_adapter(None, &content) {
+        let contract = if let Some(adapter) =
+            adapter_reg.find_adapter(source_path.as_deref(), &content)
+        {
             adapter
                 .parse(&content)
                 .map_err(|e| SyncError::ParseContract {

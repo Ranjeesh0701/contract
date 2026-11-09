@@ -28,8 +28,18 @@ pub fn to_dsl(contract: &Contract) -> String {
 }
 
 fn emit_enum(enm: &EnumType, out: &mut String) {
+    if let Some(ref desc) = enm.description {
+        for line in desc.lines() {
+            out.push_str(&format!("/// {}\n", line));
+        }
+    }
     out.push_str(&format!("enum {} {{\n", enm.name));
     for (i, v) in enm.variants.iter().enumerate() {
+        if let Some(ref desc) = v.description {
+            for line in desc.lines() {
+                out.push_str(&format!("    /// {}\n", line));
+            }
+        }
         let comma = if i + 1 < enm.variants.len() { "," } else { "" };
         out.push_str(&format!("    {}{}\n", v.name, comma));
     }
@@ -37,14 +47,29 @@ fn emit_enum(enm: &EnumType, out: &mut String) {
 }
 
 fn emit_record(rec: &Record, out: &mut String) {
+    if let Some(ref desc) = rec.description {
+        for line in desc.lines() {
+            out.push_str(&format!("/// {}\n", line));
+        }
+    }
     out.push_str(&format!("model {} {{\n", rec.name));
     for f in &rec.fields {
+        if let Some(ref desc) = f.description {
+            for line in desc.lines() {
+                out.push_str(&format!("    /// {}\n", line));
+            }
+        }
         out.push_str(&format!("    {}: {}\n", f.name, format_type(&f.field_type)));
     }
     out.push_str("}\n");
 }
 
 fn emit_alias(alias: &TypeAlias, out: &mut String) {
+    if let Some(ref desc) = alias.description {
+        for line in desc.lines() {
+            out.push_str(&format!("/// {}\n", line));
+        }
+    }
     out.push_str(&format!(
         "type {}: {}\n",
         alias.name,
@@ -53,8 +78,18 @@ fn emit_alias(alias: &TypeAlias, out: &mut String) {
 }
 
 fn emit_service(svc: &Service, out: &mut String) {
+    if let Some(ref desc) = svc.description {
+        for line in desc.lines() {
+            out.push_str(&format!("/// {}\n", line));
+        }
+    }
     out.push_str(&format!("service {} {{\n", svc.name));
     for op in &svc.operations {
+        if let Some(ref desc) = op.description {
+            for line in desc.lines() {
+                out.push_str(&format!("    /// {}\n", line));
+            }
+        }
         let input_str = op
             .input
             .as_ref()

@@ -11,6 +11,7 @@ pub enum Token {
 
     Ident(String),
     StringLit(String),
+    DocComment(String),
 
     LBrace,
     RBrace,
@@ -73,28 +74,54 @@ impl<'a> Lexer<'a> {
                     self.bump();
                     if let Some(&(_, '/')) = self.chars.peek() {
                         self.bump();
+                        let is_doc = if let Some(&(_, '/')) = self.chars.peek() {
+                            self.bump();
+                            true
+                        } else {
+                            false
+                        };
+                        let mut comment_text = String::new();
                         while let Some(&(_, c)) = self.chars.peek() {
                             if c == '\n' {
                                 break;
                             }
+                            comment_text.push(c);
                             self.bump();
+                        }
+                        if is_doc {
+                            let text = comment_text.trim().to_string();
+                            tokens.push((Token::DocComment(text), start_line, start_col));
                         }
                     } else if let Some(&(_, '*')) = self.chars.peek() {
                         self.bump();
+                        let is_doc = if let Some(&(_, '*')) = self.chars.peek() {
+                            self.bump();
+                            true
+                        } else {
+                            false
+                        };
+                        let mut comment_text = String::new();
                         while let Some(&(_, c)) = self.chars.peek() {
                             if c == '*' {
                                 self.bump();
                                 if let Some(&(_, '/')) = self.chars.peek() {
                                     self.bump();
                                     break;
+                                } else {
+                                    comment_text.push('*');
                                 }
                             } else {
                                 if c == '\n' {
                                     self.line += 1;
                                     self.col = 0;
                                 }
+                                comment_text.push(c);
                                 self.bump();
                             }
+                        }
+                        if is_doc {
+                            let text = comment_text.trim().to_string();
+                            tokens.push((Token::DocComment(text), start_line, start_col));
                         }
                     } else {
                         return Err(LexerError::UnexpectedChar('/', start_line, start_col));

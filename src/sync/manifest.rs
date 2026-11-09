@@ -35,11 +35,36 @@ pub enum DependencySource {
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "GenerateTargetRaw")]
 pub struct GenerateTarget {
     pub contract: String,
     pub lang: String,
     pub out: String,
+}
+
+#[derive(Deserialize)]
+struct GenerateTargetRaw {
+    contract: String,
+    lang: String,
+    out: Option<String>,
+    output: Option<String>,
+}
+
+impl TryFrom<GenerateTargetRaw> for GenerateTarget {
+    type Error = &'static str;
+
+    fn try_from(raw: GenerateTargetRaw) -> Result<Self, Self::Error> {
+        let out = raw
+            .out
+            .or(raw.output)
+            .ok_or("missing field `out` or `output` in [[generate]]")?;
+        Ok(Self {
+            contract: raw.contract,
+            lang: raw.lang,
+            out,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

@@ -97,10 +97,24 @@ impl Parser {
         }
     }
 
+    fn parse_doc_comment(&mut self) -> Option<String> {
+        let mut docs = Vec::new();
+        while let (Token::DocComment(doc), _, _) = self.peek() {
+            docs.push(doc.clone());
+            self.bump();
+        }
+        if docs.is_empty() {
+            None
+        } else {
+            Some(docs.join("\n"))
+        }
+    }
+
     pub fn parse_contract(&mut self) -> Result<Contract, ParseError> {
         let mut name = "UntitledContract".to_string();
         let mut version = "1.0.0".to_string();
-        let mut description = None;
+        let top_doc = self.parse_doc_comment();
+        let mut description = top_doc;
         let mut types = Vec::new();
         let mut services = Vec::new();
 
@@ -110,6 +124,14 @@ impl Parser {
             self.expect(Token::LBrace)?;
 
             loop {
+                while matches!(self.peek().0, Token::Semicolon | Token::Comma) {
+                    self.bump();
+                }
+                let item_doc = self.parse_doc_comment();
+                while matches!(self.peek().0, Token::Semicolon | Token::Comma) {
+                    self.bump();
+                }
+
                 let (tok, _, _) = self.peek();
                 if tok == &Token::RBrace || tok == &Token::Eof {
                     break;
@@ -117,22 +139,22 @@ impl Parser {
                 match tok.clone() {
                     Token::Model | Token::Record => {
                         self.bump();
-                        let record = self.parse_record()?;
+                        let record = self.parse_record(item_doc)?;
                         types.push(TypeDefinition::Record(record));
                     }
                     Token::Enum => {
                         self.bump();
-                        let enum_type = self.parse_enum()?;
+                        let enum_type = self.parse_enum(item_doc)?;
                         types.push(TypeDefinition::Enum(enum_type));
                     }
                     Token::TypeAlias => {
                         self.bump();
-                        let alias = self.parse_alias()?;
+                        let alias = self.parse_alias(item_doc)?;
                         types.push(TypeDefinition::Alias(alias));
                     }
                     Token::Service => {
                         self.bump();
-                        let service = self.parse_service()?;
+                        let service = self.parse_service(item_doc)?;
                         services.push(service);
                     }
                     Token::Semicolon | Token::Comma => {
@@ -158,6 +180,14 @@ impl Parser {
         }
 
         loop {
+            while matches!(self.peek().0, Token::Semicolon | Token::Comma) {
+                self.bump();
+            }
+            let item_doc = self.parse_doc_comment();
+            while matches!(self.peek().0, Token::Semicolon | Token::Comma) {
+                self.bump();
+            }
+
             let (tok, _, _) = self.peek();
             if tok == &Token::Eof {
                 break;
@@ -165,22 +195,22 @@ impl Parser {
             match tok.clone() {
                 Token::Model | Token::Record => {
                     self.bump();
-                    let record = self.parse_record()?;
+                    let record = self.parse_record(item_doc)?;
                     types.push(TypeDefinition::Record(record));
                 }
                 Token::Enum => {
                     self.bump();
-                    let enum_type = self.parse_enum()?;
+                    let enum_type = self.parse_enum(item_doc)?;
                     types.push(TypeDefinition::Enum(enum_type));
                 }
                 Token::TypeAlias => {
                     self.bump();
-                    let alias = self.parse_alias()?;
+                    let alias = self.parse_alias(item_doc)?;
                     types.push(TypeDefinition::Alias(alias));
                 }
                 Token::Service => {
                     self.bump();
-                    let service = self.parse_service()?;
+                    let service = self.parse_service(item_doc)?;
                     services.push(service);
                 }
                 _ => {
@@ -204,20 +234,25 @@ impl Parser {
         })
     }
 
-    fn parse_record(&mut self) -> Result<Record, ParseError> {
+    fn parse_record(&mut self, description: Option<String>) -> Result<Record, ParseError> {
         let name = self.expect_ident()?;
         self.expect(Token::LBrace)?;
 
         let mut fields = Vec::new();
         loop {
+            while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
+                self.bump();
+            }
+            let field_doc = self.parse_doc_comment();
+            while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
+                self.bump();
+            }
+
             let (tok, _, _) = self.peek();
             if tok == &Token::RBrace || tok == &Token::Eof {
                 break;
             }
-            if matches!(tok, Token::Comma | Token::Semicolon) {
-                self.bump();
-                continue;
-            }
+
             let field_name = self.expect_ident()?;
             self.expect(Token::Colon)?;
             let field_type = self.parse_type()?;
@@ -225,7 +260,7 @@ impl Parser {
             fields.push(Field {
                 name: field_name,
                 field_type,
-                description: None,
+                description: field_doc,
             });
 
             if matches!(self.peek().0, Token::Comma | Token::Semicolon) {
@@ -237,28 +272,33 @@ impl Parser {
         Ok(Record {
             name,
             fields,
-            description: None,
+            description,
         })
     }
 
-    fn parse_enum(&mut self) -> Result<EnumType, ParseError> {
+    fn parse_enum(&mut self, description: Option<String>) -> Result<EnumType, ParseError> {
         let name = self.expect_ident()?;
         self.expect(Token::LBrace)?;
 
         let mut variants = Vec::new();
         loop {
+            while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
+                self.bump();
+            }
+            let var_doc = self.parse_doc_comment();
+            while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
+                self.bump();
+            }
+
             let (tok, _, _) = self.peek();
             if tok == &Token::RBrace || tok == &Token::Eof {
                 break;
             }
-            if matches!(tok, Token::Comma | Token::Semicolon) {
-                self.bump();
-                continue;
-            }
+
             let variant_name = self.expect_ident()?;
             variants.push(EnumVariant {
                 name: variant_name,
-                description: None,
+                description: var_doc,
             });
 
             if matches!(self.peek().0, Token::Comma | Token::Semicolon) {
@@ -270,11 +310,11 @@ impl Parser {
         Ok(EnumType {
             name,
             variants,
-            description: None,
+            description,
         })
     }
 
-    fn parse_alias(&mut self) -> Result<TypeAlias, ParseError> {
+    fn parse_alias(&mut self, description: Option<String>) -> Result<TypeAlias, ParseError> {
         let name = self.expect_ident()?;
         self.expect(Token::Colon)?;
         let target = self.parse_type()?;
@@ -286,24 +326,29 @@ impl Parser {
         Ok(TypeAlias {
             name,
             target,
-            description: None,
+            description,
         })
     }
 
-    fn parse_service(&mut self) -> Result<Service, ParseError> {
+    fn parse_service(&mut self, description: Option<String>) -> Result<Service, ParseError> {
         let name = self.expect_ident()?;
         self.expect(Token::LBrace)?;
 
         let mut operations = Vec::new();
         loop {
+            while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
+                self.bump();
+            }
+            let op_doc = self.parse_doc_comment();
+            while matches!(self.peek().0, Token::Comma | Token::Semicolon) {
+                self.bump();
+            }
+
             let (tok, _, _) = self.peek();
             if tok == &Token::RBrace || tok == &Token::Eof {
                 break;
             }
-            if matches!(tok, Token::Comma | Token::Semicolon) {
-                self.bump();
-                continue;
-            }
+
             let op_name = self.expect_ident()?;
             self.expect(Token::LParen)?;
 
@@ -330,7 +375,7 @@ impl Parser {
                 name: op_name,
                 input,
                 output,
-                description: None,
+                description: op_doc,
             });
 
             if matches!(self.peek().0, Token::Comma | Token::Semicolon) {
@@ -342,7 +387,7 @@ impl Parser {
         Ok(Service {
             name,
             operations,
-            description: None,
+            description,
         })
     }
 
