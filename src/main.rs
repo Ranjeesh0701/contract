@@ -83,6 +83,16 @@ enum Commands {
         force: bool,
     },
     Drift,
+    Impact {
+        old: PathBuf,
+        new: Option<PathBuf>,
+        #[arg(short, long)]
+        target: Option<String>,
+        #[arg(short, long, value_enum, default_value = "text")]
+        format: DiffFormat,
+        #[arg(long, default_value_t = false)]
+        fail_on_breaking: bool,
+    },
 }
 
 fn main() {
@@ -110,6 +120,13 @@ fn main() {
         } => handle_export(input, format, output),
         Commands::Sync { force } => handle_sync(force),
         Commands::Drift => handle_drift(),
+        Commands::Impact {
+            old,
+            new,
+            target,
+            format,
+            fail_on_breaking,
+        } => handle_impact(old, new, target, format, fail_on_breaking),
     }
 }
 
@@ -282,6 +299,147 @@ fn handle_diff(
     }
 
     if breaking_count > 0 && fail_on_breaking {
+        exit(1);
+    }
+}
+
+fn handle_impact(
+    old_path: PathBuf,
+    new_path: Option<PathBuf>,
+    target: Option<String>,
+    format: DiffFormat,
+    fail_on_breaking: bool,
+) {
+    let old_contract = read_contract(&old_path);
+
+    let report = match new_path {
+        Some(ref new_p) => {
+            let new_contract = read_contract(new_p);
+            contract::diff::analyze_diff_impact(&old_contract, &new_contract, target.as_deref())
+        }
+        None => {
+            if let Some(ref sym) = target {
+                contract::diff::analyze_target_impact(&old_contract, sym)
+            } else {
+                eprintln!(
+                    "Error: Either provide a second contract file to compare, or specify --target <symbol> to analyze blast radius."
+                );
+                exit(1);
+            }
+        }
+    };
+
+    match format {
+        DiffFormat::Json => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&report).unwrap_or_else(|_| "{}".to_string())
+            );
+        }
+        DiffFormat::Markdown => {
+            println!("### 💥 Contract Impact Blast Radius Report\n");
+            let score_level = if report.blast_radius_score >= 20 {
+                "🔴 **HIGH**"
+            } else if report.blast_radius_score >= 10 {
+                "🟡 **MEDIUM**"
+            } else {
+                "🟢 **LOW**"
+            };
+            println!(
+                "**Blast Radius Score:** {} ({})\n",
+                report.blast_radius_score, score_level
+            );
+            let sev_str = match report.highest_severity {
+                Some(ChangeSeverity::Breaking) => "❌ `BREAKING`",
+                Some(ChangeSeverity::Warning) => "⚠️ `WARNING`",
+                Some(ChangeSeverity::Safe) => "🟢 `SAFE`",
+                None => "✔ `NONE`",
+            };
+            println!("**Highest Severity:** {}", sev_str);
+            println!(
+                "**Summary:** {} operation(s) across {} service(s) impacted, {} type(s) affected.\n",
+                report.total_impacted_operations,
+                report.total_impacted_services,
+                report.total_affected_types
+            );
+
+            if !report.impacted_endpoints.is_empty() {
+                println!("| Severity | Impacted Endpoint | Direction | Depth | Blast Radius Path | Cause |");
+                println!("|---|---|---|---|---|---|");
+                for ep in &report.impacted_endpoints {
+                    let icon = match ep.severity {
+                        ChangeSeverity::Breaking => "❌ `BREAKING`",
+                        ChangeSeverity::Warning => "⚠️ `WARNING`",
+                        ChangeSeverity::Safe => "🟢 `SAFE`",
+                    };
+                    let path_str = ep.path.join(" → ");
+                    let cause_str = ep.cause.as_deref().unwrap_or("-");
+                    println!(
+                        "| {} | `{}.{}` | {} | {} | `{}` | {} |",
+                        icon, ep.service, ep.operation, ep.direction, ep.depth, path_str, cause_str
+                    );
+                }
+            } else {
+                println!("✔ No endpoints impacted.");
+            }
+
+            if !report.affected_types.is_empty() {
+                println!(
+                    "\n**Affected Models/Types:** `{}`",
+                    report.affected_types.join("`, `")
+                );
+            }
+        }
+        DiffFormat::Text => {
+            println!("========================================");
+            println!(" Contract Impact Blast Radius Analysis");
+            println!("========================================");
+            let score_level = if report.blast_radius_score >= 20 {
+                "HIGH"
+            } else if report.blast_radius_score >= 10 {
+                "MEDIUM"
+            } else {
+                "LOW"
+            };
+            println!(
+                "Blast Radius Score: {} ({})",
+                report.blast_radius_score, score_level
+            );
+            println!("Impacted Operations: {}", report.total_impacted_operations);
+            println!("Impacted Services:   {}", report.total_impacted_services);
+            println!("Affected Types:      {}", report.total_affected_types);
+
+            if !report.impacted_endpoints.is_empty() {
+                println!("\nImpacted Endpoints:");
+                for ep in &report.impacted_endpoints {
+                    let icon = match ep.severity {
+                        ChangeSeverity::Breaking => "❌ [BREAKING]",
+                        ChangeSeverity::Warning => "⚠️ [WARNING]",
+                        ChangeSeverity::Safe => "🟢 [SAFE]",
+                    };
+                    println!(
+                        "  {} {}.{} ({}, Depth {})",
+                        icon, ep.service, ep.operation, ep.direction, ep.depth
+                    );
+                    println!("     Path:  {}", ep.path.join(" -> "));
+                    if let Some(ref c) = ep.cause {
+                        println!("     Cause: {}", c);
+                    }
+                }
+            } else {
+                println!("\n✔ No endpoints impacted.");
+            }
+
+            if !report.affected_types.is_empty() {
+                println!(
+                    "\nAffected Models/Types: {}",
+                    report.affected_types.join(", ")
+                );
+            }
+        }
+    }
+
+    if fail_on_breaking && report.has_breaking_impact() {
         exit(1);
     }
 }
