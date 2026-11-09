@@ -506,7 +506,15 @@ impl SyncEngine {
         url_str: &str,
     ) -> Result<(String, String, PathBuf), SyncError> {
         let (content, derived_path) = if let Some(stripped) = url_str.strip_prefix("file://") {
-            let file_path = PathBuf::from(stripped);
+            let clean = if stripped.starts_with('/')
+                && stripped.len() > 2
+                && stripped.chars().nth(2) == Some(':')
+            {
+                &stripped[1..]
+            } else {
+                stripped
+            };
+            let file_path = PathBuf::from(clean);
             let full_path = if file_path.is_relative() {
                 base_dir.join(&file_path)
             } else {

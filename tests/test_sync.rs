@@ -127,7 +127,7 @@ fn test_sync_with_url_file_dependency() {
     lang = "ts"
     out = "sdk/external.ts"
     "#,
-        schema_file.display()
+        schema_file.to_string_lossy().replace('\\', "/")
     );
     let manifest_path = temp_dir.join("contract.toml");
     fs::write(&manifest_path, manifest_content).unwrap();
@@ -200,7 +200,7 @@ fn test_sync_with_git_dependency() {
     lang = "ts"
     out = "src/inventory.ts"
     "#,
-        git_repo_dir.display()
+        git_repo_dir.to_string_lossy().replace('\\', "/")
     );
     fs::write(consumer_dir.join("contract.toml"), manifest_content).unwrap();
 
@@ -514,7 +514,7 @@ fn test_sync_with_git_semver_range_resolution() {
     lang = "ts"
     out = "src/sdk/products.ts"
     "#,
-        git_url = remote_repo.display()
+        git_url = remote_repo.to_string_lossy().replace('\\', "/")
     );
 
     fs::write(consumer_dir.join("contract.toml"), manifest_content).unwrap();
