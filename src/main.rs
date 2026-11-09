@@ -93,6 +93,20 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         fail_on_breaking: bool,
     },
+    Pack {
+        input: PathBuf,
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        #[arg(long, default_value_t = false)]
+        flatten: bool,
+    },
+    Unpack {
+        bundle: PathBuf,
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        #[arg(long, default_value_t = false)]
+        verify_only: bool,
+    },
 }
 
 fn main() {
@@ -127,6 +141,16 @@ fn main() {
             format,
             fail_on_breaking,
         } => handle_impact(old, new, target, format, fail_on_breaking),
+        Commands::Pack {
+            input,
+            output,
+            flatten,
+        } => handle_pack(input, output, flatten),
+        Commands::Unpack {
+            bundle,
+            output,
+            verify_only,
+        } => handle_unpack(bundle, output, verify_only),
     }
 }
 
@@ -171,6 +195,17 @@ fn read_contract(path: &PathBuf) -> Contract {
             }
         }
     } else {
+        if let Ok(bundle) = serde_json::from_str::<contract::sync::ContractBundle>(&content) {
+            if let Err(e) = bundle.verify() {
+                eprintln!(
+                    "Warning: Bundle verification failed for '{}': {}",
+                    path.display(),
+                    e
+                );
+            }
+            return bundle.root_contract;
+        }
+
         match serde_json::from_str::<Contract>(&content) {
             Ok(contract) => contract,
             Err(e) => {
@@ -703,4 +738,91 @@ fn handle_drift() {
     } else if has_drift {
         println!("\nRun 'contract sync' to update local locks and regenerate clients.");
     }
+}
+
+fn handle_pack(input: PathBuf, output: Option<PathBuf>, flatten: bool) {
+    let bundle = match contract::sync::ContractBundle::pack(&input, flatten) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("✖ Error packaging contract bundle: {}", e);
+            exit(1);
+        }
+    };
+
+    let out_path = output.unwrap_or_else(|| {
+        PathBuf::from(format!(
+            "{}-{}.bundle.json",
+            bundle.manifest.name.to_lowercase(),
+            bundle.manifest.version
+        ))
+    });
+
+    if let Err(e) = bundle.write_to_file(&out_path) {
+        eprintln!(
+            "✖ Error writing bundle file '{}': {}",
+            out_path.display(),
+            e
+        );
+        exit(1);
+    }
+
+    println!(
+        "✔ Successfully created contract bundle '{}'",
+        out_path.display()
+    );
+    println!("  - Name:         {}", bundle.manifest.name);
+    println!("  - Version:      {}", bundle.manifest.version);
+    println!("  - Files:        {} bundled", bundle.manifest.file_count);
+    println!("  - Types:        {}", bundle.manifest.total_types);
+    println!("  - Services:     {}", bundle.manifest.total_services);
+    println!("  - SHA-256:      {}", bundle.checksum);
+}
+
+fn handle_unpack(bundle_path: PathBuf, output: Option<PathBuf>, verify_only: bool) {
+    let bundle = match contract::sync::ContractBundle::read_from_file(&bundle_path) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!(
+                "✖ Bundle verification failed for '{}': {}",
+                bundle_path.display(),
+                e
+            );
+            exit(1);
+        }
+    };
+
+    println!(
+        "✔ Bundle '{}' integrity verified (SHA-256 match)",
+        bundle_path.display()
+    );
+    println!("  - Name:         {}", bundle.manifest.name);
+    println!("  - Version:      {}", bundle.manifest.version);
+    println!("  - Files:        {} bundled", bundle.manifest.file_count);
+    println!("  - Root File:    {}", bundle.manifest.root_file);
+    println!("  - Checksum:     {}", bundle.checksum);
+
+    if verify_only {
+        return;
+    }
+
+    let out_dir = match output {
+        Some(d) => d,
+        None => {
+            eprintln!(
+                "✖ Error: Specify output directory with -o / --output to unpack constituent files."
+            );
+            exit(1);
+        }
+    };
+
+    if let Err(e) = bundle.unpack(&out_dir) {
+        eprintln!("✖ Error extracting bundle to '{}': {}", out_dir.display(), e);
+        exit(1);
+    }
+
+    println!(
+        "✔ Successfully unpacked {} files to '{}'",
+        bundle.files.len(),
+        out_dir.display()
+    );
 }

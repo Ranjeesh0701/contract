@@ -1,8 +1,10 @@
+pub mod bundle;
 pub mod engine;
 pub mod lockfile;
 pub mod manifest;
 pub mod semver;
 
+pub use bundle::{BundleError, BundleManifest, ContractBundle};
 pub use engine::{
     ArtifactDriftReport, ArtifactDriftStatus, DriftReport, DriftStatus, SyncEngine, SyncError,
     SyncReport,
