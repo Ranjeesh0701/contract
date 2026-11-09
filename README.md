@@ -236,15 +236,15 @@ contract export -i api.contract -o openapi.json
 
 ## CLI Reference
 
-| Command             | Usage                                                 | Description                                                       |
-| ------------------- | ----------------------------------------------------- | ----------------------------------------------------------------- |
-| `contract check`    | `contract check <file>`                               | Validate schema syntax, type references, and semantics            |
-| `contract diff`     | `contract diff <old> <new> [-f text\|json\|markdown]` | Compare contract versions, flag deprecations and breaking changes |
-| `contract generate` | `contract generate -i <file> -l <lang> [-o <out>]`    | Emit typed SDKs (`ts`, `python`, `go`, `rust`)                    |
-| `contract import`   | `contract import <file> [-o <out>]`                   | Ingest OpenAPI, Protobuf, GraphQL, or JSON Schema                 |
-| `contract export`   | `contract export -i <file> [-f <format>] [-o <out>]`  | Export contract to OpenAPI 3.1 specification                      |
-| `contract sync`     | `contract sync [--force]`                             | Synchronize `contract.toml` dependencies and update lockfile      |
-| `contract drift`    | `contract drift`                                      | Verify upstream contract and downstream generated code integrity  |
+| Command             | Usage                                                      | Description                                                             |
+| ------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `contract check`    | `contract check <file>`                                    | Validate schema syntax, type references, and semantics                  |
+| `contract diff`     | `contract diff <old> <new> [-f <format>] [-d <direction>]` | Compare contract versions with role-aware directional breaking analysis |
+| `contract generate` | `contract generate -i <file> -l <lang> [-o <out>]`         | Emit typed SDKs (`ts`, `python`, `go`, `rust`)                          |
+| `contract import`   | `contract import <file> [-o <out>]`                        | Ingest OpenAPI, Protobuf, GraphQL, or JSON Schema                       |
+| `contract export`   | `contract export -i <file> [-f <format>] [-o <out>]`       | Export contract to OpenAPI 3.1 specification                            |
+| `contract sync`     | `contract sync [--force]`                                  | Synchronize `contract.toml` dependencies and update lockfile            |
+| `contract drift`    | `contract drift`                                           | Verify upstream contract and downstream generated code integrity        |
 
 ---
 

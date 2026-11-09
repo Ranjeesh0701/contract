@@ -1,4 +1,13 @@
+use clap::ValueEnum;
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, ValueEnum)]
+pub enum DiffDirection {
+    #[default]
+    Both,
+    Producer,
+    Consumer,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum ChangeSeverity {

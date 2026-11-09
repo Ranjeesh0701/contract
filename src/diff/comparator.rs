@@ -2,9 +2,123 @@ use std::collections::{HashMap, HashSet};
 
 use crate::ir::{Contract, EnumVariant, Field, Operation, Service, Type, TypeDefinition};
 
-use crate::diff::change::{Change, DiffReport};
+use crate::diff::change::{Change, DiffDirection, DiffReport};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeRole {
+    InputOnly,
+    OutputOnly,
+    Bidirectional,
+    Unreferenced,
+}
+
+pub fn collect_type_roles(contract: &Contract) -> HashMap<String, TypeRole> {
+    let mut input_types: HashSet<String> = HashSet::new();
+    let mut output_types: HashSet<String> = HashSet::new();
+
+    // 1. Collect direct references from service operations
+    for svc in &contract.services {
+        for op in &svc.operations {
+            if let Some(ref in_ty) = op.input {
+                let mut refs = Vec::new();
+                in_ty.collect_references(&mut refs);
+                input_types.extend(refs);
+            }
+            if let Some(ref out_ty) = op.output {
+                let mut refs = Vec::new();
+                out_ty.collect_references(&mut refs);
+                output_types.extend(refs);
+            }
+        }
+    }
+
+    // 2. Propagate transitively through records and aliases
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for type_def in &contract.types {
+            let name = type_def.name();
+            let is_input = input_types.contains(name);
+            let is_output = output_types.contains(name);
+
+            if !is_input && !is_output {
+                continue;
+            }
+
+            let mut nested_refs = Vec::new();
+            match type_def {
+                TypeDefinition::Record(r) => {
+                    for f in &r.fields {
+                        f.field_type.collect_references(&mut nested_refs);
+                    }
+                }
+                TypeDefinition::Alias(a) => {
+                    a.target.collect_references(&mut nested_refs);
+                }
+                TypeDefinition::Enum(_) => {}
+            }
+
+            for ref_name in nested_refs {
+                if is_input && input_types.insert(ref_name.clone()) {
+                    changed = true;
+                }
+                if is_output && output_types.insert(ref_name) {
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    // 3. Classify roles for all defined types
+    let mut roles = HashMap::new();
+    for type_def in &contract.types {
+        let name = type_def.name().to_string();
+        let in_scope = input_types.contains(&name);
+        let out_scope = output_types.contains(&name);
+        let role = match (in_scope, out_scope) {
+            (true, false) => TypeRole::InputOnly,
+            (false, true) => TypeRole::OutputOnly,
+            (true, true) => TypeRole::Bidirectional,
+            (false, false) => TypeRole::Unreferenced,
+        };
+        roles.insert(name, role);
+    }
+
+    roles
+}
+
+fn resolve_combined_role(
+    type_name: &str,
+    old_roles: &HashMap<String, TypeRole>,
+    new_roles: &HashMap<String, TypeRole>,
+) -> TypeRole {
+    let r_old = old_roles
+        .get(type_name)
+        .copied()
+        .unwrap_or(TypeRole::Unreferenced);
+    let r_new = new_roles
+        .get(type_name)
+        .copied()
+        .unwrap_or(TypeRole::Unreferenced);
+
+    match (r_old, r_new) {
+        (TypeRole::Bidirectional, _) | (_, TypeRole::Bidirectional) => TypeRole::Bidirectional,
+        (TypeRole::InputOnly, TypeRole::OutputOnly)
+        | (TypeRole::OutputOnly, TypeRole::InputOnly) => TypeRole::Bidirectional,
+        (TypeRole::InputOnly, _) | (_, TypeRole::InputOnly) => TypeRole::InputOnly,
+        (TypeRole::OutputOnly, _) | (_, TypeRole::OutputOnly) => TypeRole::OutputOnly,
+        (TypeRole::Unreferenced, TypeRole::Unreferenced) => TypeRole::Unreferenced,
+    }
+}
 
 pub fn diff(old: &Contract, new: &Contract) -> DiffReport {
+    diff_with_direction(old, new, DiffDirection::Both)
+}
+
+pub fn diff_with_direction(old: &Contract, new: &Contract, direction: DiffDirection) -> DiffReport {
+    let old_roles = collect_type_roles(old);
+    let new_roles = collect_type_roles(new);
+
     let mut changes = Vec::new();
 
     let mut new_types: HashMap<&str, &TypeDefinition> = HashMap::with_capacity(new.types.len());
@@ -18,6 +132,8 @@ pub fn diff(old: &Contract, new: &Contract) -> DiffReport {
 
     for old_type in &old.types {
         let type_name = old_type.name();
+        let role = resolve_combined_role(type_name, &old_roles, &new_roles);
+
         match new_types.get(type_name) {
             None => {
                 changes.push(Change::breaking(
@@ -26,7 +142,7 @@ pub fn diff(old: &Contract, new: &Contract) -> DiffReport {
                 ));
             }
             Some(new_type) => {
-                diff_type_definition(old_type, new_type, &mut changes);
+                diff_type_definition(old_type, new_type, role, &mut changes);
             }
         }
     }
@@ -73,12 +189,27 @@ pub fn diff(old: &Contract, new: &Contract) -> DiffReport {
         }
     }
 
-    DiffReport { changes }
+    let filtered_changes = match direction {
+        DiffDirection::Both => changes,
+        DiffDirection::Consumer => changes
+            .into_iter()
+            .filter(|c| !c.message.contains("(clients may still send it)"))
+            .collect(),
+        DiffDirection::Producer => changes
+            .into_iter()
+            .filter(|c| !c.message.contains("response record"))
+            .collect(),
+    };
+
+    DiffReport {
+        changes: filtered_changes,
+    }
 }
 
 fn diff_type_definition(
     old_def: &TypeDefinition,
     new_def: &TypeDefinition,
+    role: TypeRole,
     changes: &mut Vec<Change>,
 ) {
     let type_name = old_def.name();
@@ -109,12 +240,32 @@ fn diff_type_definition(
             for old_field in &old_rec.fields {
                 let field_name = &old_field.name;
                 match new_fields.get(field_name.as_str()) {
-                    None => {
-                        changes.push(Change::breaking(
-                            format!("types.{type_name}.fields.{field_name}"),
-                            format!("Field '{field_name}' was removed from record '{type_name}'"),
-                        ));
-                    }
+                    None => match role {
+                        TypeRole::InputOnly => {
+                            changes.push(Change::warning(
+                                format!("types.{type_name}.fields.{field_name}"),
+                                format!(
+                                    "Field '{field_name}' was removed from request record '{type_name}' (clients may still send it)"
+                                ),
+                            ));
+                        }
+                        TypeRole::OutputOnly => {
+                            changes.push(Change::breaking(
+                                format!("types.{type_name}.fields.{field_name}"),
+                                format!(
+                                    "Field '{field_name}' was removed from response record '{type_name}'"
+                                ),
+                            ));
+                        }
+                        TypeRole::Bidirectional | TypeRole::Unreferenced => {
+                            changes.push(Change::breaking(
+                                format!("types.{type_name}.fields.{field_name}"),
+                                format!(
+                                    "Field '{field_name}' was removed from record '{type_name}'"
+                                ),
+                            ));
+                        }
+                    },
                     Some(new_field) => {
                         if old_field.deprecated.is_none() && new_field.deprecated.is_some() {
                             changes.push(Change::warning(
@@ -141,22 +292,52 @@ fn diff_type_definition(
             for new_field in &new_rec.fields {
                 let field_name = &new_field.name;
                 if !old_fields.contains_key(field_name.as_str()) {
-                    match new_field.field_type {
-                        Type::Optional(_) => {
+                    match role {
+                        TypeRole::OutputOnly => {
                             changes.push(Change::safe(
                                 format!("types.{type_name}.fields.{field_name}"),
                                 format!(
-                                    "Added optional field '{field_name}' to record '{type_name}'"
+                                    "Added field '{field_name}' to response record '{type_name}'"
                                 ),
                             ));
                         }
-                        _ => {
-                            changes.push(Change::breaking(
-                                format!("types.{type_name}.fields.{field_name}"),
-                                format!(
-                                    "Added required field '{field_name}' to record '{type_name}' without default"
-                                ),
-                            ));
+                        TypeRole::InputOnly => match new_field.field_type {
+                            Type::Optional(_) => {
+                                changes.push(Change::safe(
+                                    format!("types.{type_name}.fields.{field_name}"),
+                                    format!(
+                                        "Added optional field '{field_name}' to request record '{type_name}'"
+                                    ),
+                                ));
+                            }
+                            _ => {
+                                changes.push(Change::breaking(
+                                    format!("types.{type_name}.fields.{field_name}"),
+                                    format!(
+                                        "Added required field '{field_name}' to request record '{type_name}' without default"
+                                    ),
+                                ));
+                            }
+                        },
+                        TypeRole::Bidirectional | TypeRole::Unreferenced => {
+                            match new_field.field_type {
+                                Type::Optional(_) => {
+                                    changes.push(Change::safe(
+                                        format!("types.{type_name}.fields.{field_name}"),
+                                        format!(
+                                            "Added optional field '{field_name}' to record '{type_name}'"
+                                        ),
+                                    ));
+                                }
+                                _ => {
+                                    changes.push(Change::breaking(
+                                        format!("types.{type_name}.fields.{field_name}"),
+                                        format!(
+                                            "Added required field '{field_name}' to record '{type_name}' without default"
+                                        ),
+                                    ));
+                                }
+                            }
                         }
                     }
                 }

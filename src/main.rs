@@ -4,7 +4,7 @@ use std::process::exit;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use contract::codegen::{GoGenerator, PythonGenerator, RustGenerator, TypeScriptGenerator};
-use contract::diff::{ChangeSeverity, diff};
+use contract::diff::{ChangeSeverity, DiffDirection, diff_with_direction};
 use contract::ir::Contract;
 
 #[derive(Parser)]
@@ -49,6 +49,8 @@ enum Commands {
         fail_on_breaking: bool,
         #[arg(short, long, value_enum, default_value = "text")]
         format: DiffFormat,
+        #[arg(short, long, value_enum, default_value = "both")]
+        direction: DiffDirection,
     },
     Generate {
         #[arg(short, long)]
@@ -93,7 +95,8 @@ fn main() {
             new,
             fail_on_breaking,
             format,
-        } => handle_diff(old, new, fail_on_breaking, format),
+            direction,
+        } => handle_diff(old, new, fail_on_breaking, format, direction),
         Commands::Generate {
             input,
             lang,
@@ -188,11 +191,17 @@ fn handle_check(file: PathBuf) {
     }
 }
 
-fn handle_diff(old_path: PathBuf, new_path: PathBuf, fail_on_breaking: bool, format: DiffFormat) {
+fn handle_diff(
+    old_path: PathBuf,
+    new_path: PathBuf,
+    fail_on_breaking: bool,
+    format: DiffFormat,
+    direction: DiffDirection,
+) {
     let old_contract = read_contract(&old_path);
     let new_contract = read_contract(&new_path);
 
-    let report = diff(&old_contract, &new_contract);
+    let report = diff_with_direction(&old_contract, &new_contract, direction);
     let breaking_count = report.breaking_changes().len();
     let warning_count = report.warnings().len();
 
