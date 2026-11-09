@@ -7,10 +7,14 @@ use crate::diff::change::{Change, DiffReport};
 pub fn diff(old: &Contract, new: &Contract) -> DiffReport {
     let mut changes = Vec::new();
 
-    let new_types: HashMap<&str, &TypeDefinition> =
-        new.types.iter().map(|t| (t.name(), t)).collect();
-    let old_types: HashMap<&str, &TypeDefinition> =
-        old.types.iter().map(|t| (t.name(), t)).collect();
+    let mut new_types: HashMap<&str, &TypeDefinition> = HashMap::with_capacity(new.types.len());
+    for t in &new.types {
+        new_types.insert(t.name(), t);
+    }
+    let mut old_types: HashMap<&str, &TypeDefinition> = HashMap::with_capacity(old.types.len());
+    for t in &old.types {
+        old_types.insert(t.name(), t);
+    }
 
     for old_type in &old.types {
         let type_name = old_type.name();
@@ -37,10 +41,14 @@ pub fn diff(old: &Contract, new: &Contract) -> DiffReport {
         }
     }
 
-    let new_services: HashMap<&str, &Service> =
-        new.services.iter().map(|s| (s.name.as_str(), s)).collect();
-    let old_services: HashMap<&str, &Service> =
-        old.services.iter().map(|s| (s.name.as_str(), s)).collect();
+    let mut new_services: HashMap<&str, &Service> = HashMap::with_capacity(new.services.len());
+    for s in &new.services {
+        new_services.insert(s.name.as_str(), s);
+    }
+    let mut old_services: HashMap<&str, &Service> = HashMap::with_capacity(old.services.len());
+    for s in &old.services {
+        old_services.insert(s.name.as_str(), s);
+    }
 
     for old_svc in &old.services {
         match new_services.get(old_svc.name.as_str()) {
@@ -102,7 +110,7 @@ fn diff_type_definition(
                             changes.push(Change::breaking(
                                 format!("types.{type_name}.fields.{field_name}"),
                                 format!(
-                                    "Field '{field_name}' changed type from {:?} to {:?}",
+                                    "Field '{field_name}' changed type from {} to {}",
                                     old_field.field_type, new_field.field_type
                                 ),
                             ));
@@ -169,7 +177,7 @@ fn diff_type_definition(
                 changes.push(Change::breaking(
                     format!("types.{type_name}"),
                     format!(
-                        "Alias '{type_name}' changed target from {:?} to {:?}",
+                        "Alias '{type_name}' changed target from {} to {}",
                         old_alias.target, new_alias.target
                     ),
                 ));
@@ -209,20 +217,38 @@ fn diff_service(old_svc: &Service, new_svc: &Service, changes: &mut Vec<Change>)
             }
             Some(new_op) => {
                 if old_op.input != new_op.input {
+                    let old_in = old_op
+                        .input
+                        .as_ref()
+                        .map(|t| t.to_string())
+                        .unwrap_or_else(|| "Void".to_string());
+                    let new_in = new_op
+                        .input
+                        .as_ref()
+                        .map(|t| t.to_string())
+                        .unwrap_or_else(|| "Void".to_string());
                     changes.push(Change::breaking(
                         format!("services.{svc_name}.operations.{op_name}.input"),
                         format!(
-                            "Input for operation '{op_name}' changed from {:?} to {:?}",
-                            old_op.input, new_op.input
+                            "Input for operation '{op_name}' changed from {old_in} to {new_in}"
                         ),
                     ));
                 }
                 if old_op.output != new_op.output {
+                    let old_out = old_op
+                        .output
+                        .as_ref()
+                        .map(|t| t.to_string())
+                        .unwrap_or_else(|| "Void".to_string());
+                    let new_out = new_op
+                        .output
+                        .as_ref()
+                        .map(|t| t.to_string())
+                        .unwrap_or_else(|| "Void".to_string());
                     changes.push(Change::breaking(
                         format!("services.{svc_name}.operations.{op_name}.output"),
                         format!(
-                            "Output for operation '{op_name}' changed from {:?} to {:?}",
-                            old_op.output, new_op.output
+                            "Output for operation '{op_name}' changed from {old_out} to {new_out}"
                         ),
                     ));
                 }

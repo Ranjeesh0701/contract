@@ -27,13 +27,16 @@ impl PythonGenerator {
         });
 
         let needs_optional = contract.types.iter().any(|t| match t {
-            TypeDefinition::Record(r) => r.fields.iter().any(|f| Self::contains_optional(&f.field_type)),
+            TypeDefinition::Record(r) => r
+                .fields
+                .iter()
+                .any(|f| Self::contains_optional(&f.field_type)),
             TypeDefinition::Alias(a) => Self::contains_optional(&a.target),
             _ => false,
         }) || contract.services.iter().any(|s| {
             s.operations.iter().any(|op| {
-                op.input.as_ref().map_or(false, Self::contains_optional)
-                    || op.output.as_ref().map_or(false, Self::contains_optional)
+                op.input.as_ref().is_some_and(Self::contains_optional)
+                    || op.output.as_ref().is_some_and(Self::contains_optional)
             })
         });
 

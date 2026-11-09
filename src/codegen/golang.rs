@@ -239,12 +239,16 @@ impl GoGenerator {
                 if output_type.is_empty() {
                     out.push_str("\t\treturn fmt.Errorf(\"failed to marshal input: %w\", err)\n");
                 } else {
-                    out.push_str("\t\treturn nil, fmt.Errorf(\"failed to marshal input: %w\", err)\n");
+                    out.push_str(
+                        "\t\treturn nil, fmt.Errorf(\"failed to marshal input: %w\", err)\n",
+                    );
                 }
                 out.push_str("\t}\n");
                 out.push_str("\treq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))\n");
             } else {
-                out.push_str("\treq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)\n");
+                out.push_str(
+                    "\treq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)\n",
+                );
             }
 
             out.push_str("\tif err != nil {\n");
@@ -289,8 +293,12 @@ impl GoGenerator {
                     &output_type
                 };
                 out.push_str(&format!("\tvar result {}\n", base_ty));
-                out.push_str("\tif err := json.NewDecoder(resp.Body).Decode(&result); err != nil {\n");
-                out.push_str("\t\treturn nil, fmt.Errorf(\"failed to decode response: %w\", err)\n");
+                out.push_str(
+                    "\tif err := json.NewDecoder(resp.Body).Decode(&result); err != nil {\n",
+                );
+                out.push_str(
+                    "\t\treturn nil, fmt.Errorf(\"failed to decode response: %w\", err)\n",
+                );
                 out.push_str("\t}\n");
                 if is_ptr {
                     out.push_str("\treturn &result, nil\n");
@@ -344,12 +352,12 @@ fn to_pascal_case(s: &str) -> String {
         "Api" => "API".to_string(),
         "Http" => "HTTP".to_string(),
         other => {
-            if other.ends_with("Id") {
-                format!("{}ID", &other[..other.len() - 2])
-            } else if other.ends_with("Url") {
-                format!("{}URL", &other[..other.len() - 3])
-            } else if other.ends_with("Api") {
-                format!("{}API", &other[..other.len() - 3])
+            if let Some(prefix) = other.strip_suffix("Id") {
+                format!("{prefix}ID")
+            } else if let Some(prefix) = other.strip_suffix("Url") {
+                format!("{prefix}URL")
+            } else if let Some(prefix) = other.strip_suffix("Api") {
+                format!("{prefix}API")
             } else {
                 other.to_string()
             }

@@ -1,6 +1,6 @@
+use contract::sync::{DriftStatus, SyncEngine};
 use std::fs;
 use std::path::PathBuf;
-use contract::sync::{DriftStatus, SyncEngine};
 
 fn setup_temp_workspace() -> PathBuf {
     let dir = std::env::temp_dir().join(format!("contract_sync_test_{}", std::process::id()));

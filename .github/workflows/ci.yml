@@ -19,5 +19,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Build & Check
         run: cargo check --all-targets
+      - name: Clippy Linter
+        run: cargo clippy --all-targets -- -D warnings
       - name: Run Tests
-        run: cargo test
+        run: cargo test --all-targets && cargo test --doc

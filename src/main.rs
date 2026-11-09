@@ -8,7 +8,7 @@ use contract::diff::{ChangeSeverity, diff};
 use contract::ir::Contract;
 
 #[derive(Parser)]
-#[command(name = "contract")]
+#[command(name = "contract", version)]
 #[command(
     about = "Cross-repository contract and type-safety platform CLI",
     long_about = None
@@ -43,8 +43,8 @@ enum Commands {
         old: PathBuf,
         /// New contract file
         new: PathBuf,
-        /// Exit with non-zero code if breaking changes are detected (default: true)
-        #[arg(long, default_value_t = true)]
+        /// Exit with non-zero code if breaking changes are detected
+        #[arg(long, default_value_t = false)]
         fail_on_breaking: bool,
     },
     /// Generate idiomatic client/server code from a contract
@@ -61,9 +61,9 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
-    /// Import an OpenAPI / Swagger document and convert it into a .contract schema
+    /// Import an existing schema (OpenAPI, Protobuf, GraphQL, JSON Schema) and convert it into a .contract schema
     Import {
-        /// Path to OpenAPI JSON document
+        /// Path to schema document (.json, .proto, .graphql, or OpenAPI document)
         input: PathBuf,
 
         /// Output .contract file (prints to stdout if omitted)
@@ -261,32 +261,29 @@ fn handle_import(input: PathBuf, output: Option<PathBuf>) {
     };
 
     let adapter_reg = contract::adapters::default_registry();
-    let contract = if let Some(adapter) = adapter_reg.find_adapter(Some(&input), &content) {
-        match adapter.parse(&content) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!(
-                    "Error importing document '{}' with adapter '{}': {}",
-                    input.display(),
-                    adapter.name(),
-                    e
-                );
-                exit(1);
+    let (contract, schema_format) =
+        if let Some(adapter) = adapter_reg.find_adapter(Some(&input), &content) {
+            match adapter.parse(&content) {
+                Ok(c) => (c, adapter.name().to_string()),
+                Err(e) => {
+                    eprintln!(
+                        "Error importing document '{}' with adapter '{}': {}",
+                        input.display(),
+                        adapter.name(),
+                        e
+                    );
+                    exit(1);
+                }
             }
-        }
-    } else {
-        match contract::adapters::from_openapi_json(&content) {
-            Ok(c) => c,
-            Err(e) => {
-                eprintln!(
-                    "Error importing document '{}': {}",
-                    input.display(),
-                    e
-                );
-                exit(1);
+        } else {
+            match contract::adapters::from_openapi_json(&content) {
+                Ok(c) => (c, "OpenAPI".to_string()),
+                Err(e) => {
+                    eprintln!("Error importing document '{}': {}", input.display(), e);
+                    exit(1);
+                }
             }
-        }
-    };
+        };
 
     let dsl = contract::parser::to_dsl(&contract);
 
@@ -297,7 +294,8 @@ fn handle_import(input: PathBuf, output: Option<PathBuf>) {
                 exit(1);
             }
             println!(
-                "✔ Successfully imported OpenAPI to '{}' ({} types, {} services)",
+                "✔ Successfully imported {} to '{}' ({} types, {} services)",
+                schema_format,
                 out_path.display(),
                 contract.types.len(),
                 contract.services.len()

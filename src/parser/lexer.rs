@@ -20,6 +20,7 @@ pub enum Token {
     RBracket,
     Colon,
     Comma,
+    Semicolon,
     Question,
     Lt,
     Gt,
@@ -78,9 +79,39 @@ impl<'a> Lexer<'a> {
                             }
                             self.bump();
                         }
+                    } else if let Some(&(_, '*')) = self.chars.peek() {
+                        self.bump();
+                        while let Some(&(_, c)) = self.chars.peek() {
+                            if c == '*' {
+                                self.bump();
+                                if let Some(&(_, '/')) = self.chars.peek() {
+                                    self.bump();
+                                    break;
+                                }
+                            } else {
+                                if c == '\n' {
+                                    self.line += 1;
+                                    self.col = 0;
+                                }
+                                self.bump();
+                            }
+                        }
                     } else {
                         return Err(LexerError::UnexpectedChar('/', start_line, start_col));
                     }
+                }
+                '#' => {
+                    self.bump();
+                    while let Some(&(_, c)) = self.chars.peek() {
+                        if c == '\n' {
+                            break;
+                        }
+                        self.bump();
+                    }
+                }
+                ';' => {
+                    self.bump();
+                    tokens.push((Token::Semicolon, start_line, start_col));
                 }
                 '{' => {
                     self.bump();
@@ -131,15 +162,15 @@ impl<'a> Lexer<'a> {
                     tokens.push((Token::StringLit(s), start_line, start_col));
                 }
                 c if c.is_alphabetic() || c == '_' => {
-                    let ident = self.lex_ident(idx);
-                    let tok = match ident.as_str() {
+                    let ident = self.lex_ident_slice(idx);
+                    let tok = match ident {
                         "contract" => Token::Contract,
                         "enum" => Token::Enum,
                         "model" => Token::Model,
                         "record" => Token::Record,
                         "service" => Token::Service,
                         "type" => Token::TypeAlias,
-                        _ => Token::Ident(ident),
+                        _ => Token::Ident(ident.to_string()),
                     };
                     tokens.push((tok, start_line, start_col));
                 }
@@ -161,7 +192,7 @@ impl<'a> Lexer<'a> {
         item
     }
 
-    fn lex_ident(&mut self, start_idx: usize) -> String {
+    fn lex_ident_slice(&mut self, start_idx: usize) -> &'a str {
         let mut end_idx = start_idx;
         while let Some(&(idx, ch)) = self.chars.peek() {
             if ch.is_alphanumeric() || ch == '_' {
@@ -171,7 +202,7 @@ impl<'a> Lexer<'a> {
                 break;
             }
         }
-        self.source[start_idx..end_idx].to_string()
+        &self.source[start_idx..end_idx]
     }
 
     fn lex_string(&mut self, start_line: usize, start_col: usize) -> Result<String, LexerError> {

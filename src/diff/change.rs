@@ -53,6 +53,10 @@ impl DiffReport {
             .any(|c| c.severity == ChangeSeverity::Breaking)
     }
 
+    pub fn has_breaking_changes(&self) -> bool {
+        !self.is_compatible()
+    }
+
     pub fn breaking_changes(&self) -> Vec<&Change> {
         self.changes
             .iter()

@@ -18,12 +18,11 @@ impl SchemaAdapter for ProtobufAdapter {
     }
 
     fn can_handle(&self, path: Option<&Path>, content: &str) -> bool {
-        if let Some(p) = path {
-            if let Some(ext) = p.extension().and_then(|s| s.to_str()) {
-                if ext.eq_ignore_ascii_case("proto") {
-                    return true;
-                }
-            }
+        if matches!(
+            path.and_then(|p| p.extension()).and_then(|s| s.to_str()),
+            Some(ext) if ext.eq_ignore_ascii_case("proto")
+        ) {
+            return true;
         }
         content.contains("syntax = \"proto")
             || (content.contains("message ") && content.contains('{'))
@@ -213,11 +212,9 @@ impl<'a> ProtoParser<'a> {
                 }
                 ProtoToken::Ident(s) if s == "package" => {
                     idx += 1;
-                    if idx < tokens.len() {
-                        if let ProtoToken::Ident(pkg) = &tokens[idx].0 {
-                            package_name = to_pascal_case(pkg);
-                            idx += 1;
-                        }
+                    if let Some((ProtoToken::Ident(pkg), _)) = tokens.get(idx) {
+                        package_name = to_pascal_case(pkg);
+                        idx += 1;
                     }
                     if idx < tokens.len() && tokens[idx].0 == ProtoToken::Semicolon {
                         idx += 1;
@@ -428,82 +425,77 @@ impl<'a> ProtoParser<'a> {
         let mut operations = Vec::new();
         while *idx < tokens.len() && tokens[*idx].0 != ProtoToken::RBrace {
             let op_desc = tokens[*idx].1.clone();
-            if let Some((ProtoToken::Ident(kw), _)) = tokens.get(*idx) {
-                if kw == "rpc" {
+            if matches!(tokens.get(*idx), Some((ProtoToken::Ident(kw), _)) if kw == "rpc") {
+                *idx += 1;
+                let op_name = match tokens.get(*idx) {
+                    Some((ProtoToken::Ident(n), _)) => {
+                        *idx += 1;
+                        n.clone()
+                    }
+                    _ => continue,
+                };
+
+                // Input (InputType)
+                let input_type = if tokens.get(*idx).map(|t| &t.0) == Some(&ProtoToken::LParen) {
                     *idx += 1;
-                    let op_name = match tokens.get(*idx) {
-                        Some((ProtoToken::Ident(n), _)) => {
+                    let in_name = match tokens.get(*idx) {
+                        Some((ProtoToken::Ident(t), _)) => {
                             *idx += 1;
-                            n.clone()
+                            t.clone()
                         }
-                        _ => continue,
+                        _ => "".to_string(),
                     };
-
-                    // Input (InputType)
-                    let input_type = if tokens.get(*idx).map(|t| &t.0) == Some(&ProtoToken::LParen)
-                    {
-                        *idx += 1;
-                        let in_name = match tokens.get(*idx) {
-                            Some((ProtoToken::Ident(t), _)) => {
-                                *idx += 1;
-                                t.clone()
-                            }
-                            _ => "".to_string(),
-                        };
-                        if tokens.get(*idx).map(|t| &t.0) == Some(&ProtoToken::RParen) {
-                            *idx += 1;
-                        }
-                        if in_name.is_empty() || in_name == "google.protobuf.Empty" {
-                            None
-                        } else {
-                            Some(Type::Reference(in_name))
-                        }
-                    } else {
-                        None
-                    };
-
-                    // Skip "returns"
-                    if let Some((ProtoToken::Ident(ret_kw), _)) = tokens.get(*idx) {
-                        if ret_kw == "returns" {
-                            *idx += 1;
-                        }
-                    }
-
-                    // Output (OutputType)
-                    let output_type = if tokens.get(*idx).map(|t| &t.0) == Some(&ProtoToken::LParen)
-                    {
-                        *idx += 1;
-                        let out_name = match tokens.get(*idx) {
-                            Some((ProtoToken::Ident(t), _)) => {
-                                *idx += 1;
-                                t.clone()
-                            }
-                            _ => "".to_string(),
-                        };
-                        if tokens.get(*idx).map(|t| &t.0) == Some(&ProtoToken::RParen) {
-                            *idx += 1;
-                        }
-                        if out_name.is_empty() || out_name == "google.protobuf.Empty" {
-                            None
-                        } else {
-                            Some(Type::Reference(out_name))
-                        }
-                    } else {
-                        None
-                    };
-
-                    if tokens.get(*idx).map(|t| &t.0) == Some(&ProtoToken::Semicolon) {
+                    if tokens.get(*idx).map(|t| &t.0) == Some(&ProtoToken::RParen) {
                         *idx += 1;
                     }
+                    if in_name.is_empty() || in_name == "google.protobuf.Empty" {
+                        None
+                    } else {
+                        Some(Type::Reference(in_name))
+                    }
+                } else {
+                    None
+                };
 
-                    operations.push(Operation {
-                        name: op_name,
-                        input: input_type,
-                        output: output_type,
-                        description: op_desc,
-                    });
-                    continue;
+                // Skip "returns"
+                if matches!(tokens.get(*idx), Some((ProtoToken::Ident(ret_kw), _)) if ret_kw == "returns")
+                {
+                    *idx += 1;
                 }
+
+                // Output (OutputType)
+                let output_type = if tokens.get(*idx).map(|t| &t.0) == Some(&ProtoToken::LParen) {
+                    *idx += 1;
+                    let out_name = match tokens.get(*idx) {
+                        Some((ProtoToken::Ident(t), _)) => {
+                            *idx += 1;
+                            t.clone()
+                        }
+                        _ => "".to_string(),
+                    };
+                    if tokens.get(*idx).map(|t| &t.0) == Some(&ProtoToken::RParen) {
+                        *idx += 1;
+                    }
+                    if out_name.is_empty() || out_name == "google.protobuf.Empty" {
+                        None
+                    } else {
+                        Some(Type::Reference(out_name))
+                    }
+                } else {
+                    None
+                };
+
+                if tokens.get(*idx).map(|t| &t.0) == Some(&ProtoToken::Semicolon) {
+                    *idx += 1;
+                }
+
+                operations.push(Operation {
+                    name: op_name,
+                    input: input_type,
+                    output: output_type,
+                    description: op_desc,
+                });
+                continue;
             }
             *idx += 1;
         }

@@ -20,13 +20,34 @@ pub enum Type {
 impl Type {
     pub fn collect_references(&self, refs: &mut Vec<String>) {
         match self {
-            Type::Reference(name) => refs.push(name.clone()),
+            Type::Reference(name) => {
+                if !name.eq_ignore_ascii_case("void") {
+                    refs.push(name.clone());
+                }
+            }
             Type::List(inner) | Type::Optional(inner) => inner.collect_references(refs),
             Type::Map { key, value } => {
                 key.collect_references(refs);
                 value.collect_references(refs);
             }
             _ => {}
+        }
+    }
+}
+
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Bool => write!(f, "Bool"),
+            Type::String => write!(f, "String"),
+            Type::Int32 => write!(f, "Int32"),
+            Type::Int64 => write!(f, "Int64"),
+            Type::Float64 => write!(f, "Float64"),
+            Type::Bytes => write!(f, "Bytes"),
+            Type::List(inner) => write!(f, "{}[]", inner),
+            Type::Map { key, value } => write!(f, "Map<{}, {}>", key, value),
+            Type::Optional(inner) => write!(f, "{}?", inner),
+            Type::Reference(name) => write!(f, "{}", name),
         }
     }
 }

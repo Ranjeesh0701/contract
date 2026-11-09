@@ -114,14 +114,44 @@ impl Parser {
                 if tok == &Token::RBrace || tok == &Token::Eof {
                     break;
                 }
-                let key = self.expect_ident()?;
-                self.expect(Token::Colon)?;
-                let val = self.expect_string()?;
+                match tok.clone() {
+                    Token::Model | Token::Record => {
+                        self.bump();
+                        let record = self.parse_record()?;
+                        types.push(TypeDefinition::Record(record));
+                    }
+                    Token::Enum => {
+                        self.bump();
+                        let enum_type = self.parse_enum()?;
+                        types.push(TypeDefinition::Enum(enum_type));
+                    }
+                    Token::TypeAlias => {
+                        self.bump();
+                        let alias = self.parse_alias()?;
+                        types.push(TypeDefinition::Alias(alias));
+                    }
+                    Token::Service => {
+                        self.bump();
+                        let service = self.parse_service()?;
+                        services.push(service);
+                    }
+                    Token::Semicolon | Token::Comma => {
+                        self.bump();
+                    }
+                    _ => {
+                        let key = self.expect_ident()?;
+                        self.expect(Token::Colon)?;
+                        let val = self.expect_string()?;
 
-                match key.as_str() {
-                    "version" => version = val,
-                    "description" => description = Some(val),
-                    _ => {}
+                        match key.as_str() {
+                            "version" => version = val,
+                            "description" => description = Some(val),
+                            _ => {}
+                        }
+                        if matches!(self.peek().0, Token::Semicolon | Token::Comma) {
+                            self.bump();
+                        }
+                    }
                 }
             }
             self.expect(Token::RBrace)?;
@@ -184,6 +214,10 @@ impl Parser {
             if tok == &Token::RBrace || tok == &Token::Eof {
                 break;
             }
+            if matches!(tok, Token::Comma | Token::Semicolon) {
+                self.bump();
+                continue;
+            }
             let field_name = self.expect_ident()?;
             self.expect(Token::Colon)?;
             let field_type = self.parse_type()?;
@@ -193,6 +227,10 @@ impl Parser {
                 field_type,
                 description: None,
             });
+
+            if matches!(self.peek().0, Token::Comma | Token::Semicolon) {
+                self.bump();
+            }
         }
 
         self.expect(Token::RBrace)?;
@@ -213,13 +251,17 @@ impl Parser {
             if tok == &Token::RBrace || tok == &Token::Eof {
                 break;
             }
+            if matches!(tok, Token::Comma | Token::Semicolon) {
+                self.bump();
+                continue;
+            }
             let variant_name = self.expect_ident()?;
             variants.push(EnumVariant {
                 name: variant_name,
                 description: None,
             });
 
-            if let (Token::Comma, _, _) = self.peek() {
+            if matches!(self.peek().0, Token::Comma | Token::Semicolon) {
                 self.bump();
             }
         }
@@ -236,6 +278,10 @@ impl Parser {
         let name = self.expect_ident()?;
         self.expect(Token::Colon)?;
         let target = self.parse_type()?;
+
+        if matches!(self.peek().0, Token::Comma | Token::Semicolon) {
+            self.bump();
+        }
 
         Ok(TypeAlias {
             name,
@@ -254,6 +300,10 @@ impl Parser {
             if tok == &Token::RBrace || tok == &Token::Eof {
                 break;
             }
+            if matches!(tok, Token::Comma | Token::Semicolon) {
+                self.bump();
+                continue;
+            }
             let op_name = self.expect_ident()?;
             self.expect(Token::LParen)?;
 
@@ -264,8 +314,17 @@ impl Parser {
             };
 
             self.expect(Token::RParen)?;
-            self.expect(Token::Colon)?;
-            let output = Some(self.parse_type()?);
+
+            let output = if let (Token::Colon, _, _) = self.peek() {
+                self.bump();
+                let ty = self.parse_type()?;
+                match &ty {
+                    Type::Reference(name) if name.eq_ignore_ascii_case("void") => None,
+                    _ => Some(ty),
+                }
+            } else {
+                None
+            };
 
             operations.push(Operation {
                 name: op_name,
@@ -273,6 +332,10 @@ impl Parser {
                 output,
                 description: None,
             });
+
+            if matches!(self.peek().0, Token::Comma | Token::Semicolon) {
+                self.bump();
+            }
         }
 
         self.expect(Token::RBrace)?;

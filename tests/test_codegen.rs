@@ -93,7 +93,11 @@ fn test_python_codegen() {
     assert!(py_code.contains("class OrderStatus(str, Enum):"));
     assert!(py_code.contains("Pending = \"Pending\""));
     assert!(py_code.contains("class Order(BaseModel):"));
-    assert!(py_code.contains("order_id: str = Field(alias=\"orderId\", description=\"Unique identifier\")"));
+    assert!(
+        py_code.contains(
+            "order_id: str = Field(alias=\"orderId\", description=\"Unique identifier\")"
+        )
+    );
     assert!(py_code.contains("notes: Optional[str] = Field(default=None)"));
     assert!(py_code.contains("class OrderService(ABC):"));
     assert!(py_code.contains("def get_order(self, input: str) -> Order:"));

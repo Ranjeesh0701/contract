@@ -72,16 +72,5 @@ fn emit_service(svc: &Service, out: &mut String) {
 }
 
 fn format_type(ty: &Type) -> String {
-    match ty {
-        Type::Bool => "Bool".to_string(),
-        Type::String => "String".to_string(),
-        Type::Int32 => "Int32".to_string(),
-        Type::Int64 => "Int64".to_string(),
-        Type::Float64 => "Float64".to_string(),
-        Type::Bytes => "Bytes".to_string(),
-        Type::List(inner) => format!("{}[]", format_type(inner)),
-        Type::Map { key, value } => format!("Map<{}, {}>", format_type(key), format_type(value)),
-        Type::Optional(inner) => format!("{}?", format_type(inner)),
-        Type::Reference(name) => name.clone(),
-    }
+    ty.to_string()
 }

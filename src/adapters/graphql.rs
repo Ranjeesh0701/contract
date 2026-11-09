@@ -18,12 +18,11 @@ impl SchemaAdapter for GraphQLAdapter {
     }
 
     fn can_handle(&self, path: Option<&Path>, content: &str) -> bool {
-        if let Some(p) = path {
-            if let Some(ext) = p.extension().and_then(|s| s.to_str()) {
-                if ext.eq_ignore_ascii_case("graphql") || ext.eq_ignore_ascii_case("gql") {
-                    return true;
-                }
-            }
+        if matches!(
+            path.and_then(|p| p.extension()).and_then(|s| s.to_str()),
+            Some(ext) if ext.eq_ignore_ascii_case("graphql") || ext.eq_ignore_ascii_case("gql")
+        ) {
+            return true;
         }
         content.contains("type Query")
             || content.contains("type Mutation")

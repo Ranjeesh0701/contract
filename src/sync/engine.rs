@@ -72,15 +72,17 @@ impl SyncEngine {
             let (new_contract, sha256, source_desc) =
                 Self::fetch_and_parse(manifest_dir, dep_name, source)?;
 
-            if let Some(old_locked) = lockfile.contracts.get(dep_name) {
-                if old_locked.sha256 != sha256 {
-                    let report = diff(&old_locked.contract, &new_contract);
-                    if !report.is_compatible() && !force {
-                        return Err(SyncError::BreakingChange {
-                            dep: dep_name.clone(),
-                            count: report.breaking_changes().len(),
-                        });
-                    }
+            if let Some(old_locked) = lockfile
+                .contracts
+                .get(dep_name)
+                .filter(|old| old.sha256 != sha256)
+            {
+                let report = diff(&old_locked.contract, &new_contract);
+                if !report.is_compatible() && !force {
+                    return Err(SyncError::BreakingChange {
+                        dep: dep_name.clone(),
+                        count: report.breaking_changes().len(),
+                    });
                 }
             }
 
@@ -201,10 +203,12 @@ impl SyncEngine {
 
         let adapter_reg = adapters::default_registry();
         let contract = if let Some(adapter) = adapter_reg.find_adapter(None, &content) {
-            adapter.parse(&content).map_err(|e| SyncError::ParseContract {
-                dep: dep_name.to_string(),
-                reason: e.to_string(),
-            })?
+            adapter
+                .parse(&content)
+                .map_err(|e| SyncError::ParseContract {
+                    dep: dep_name.to_string(),
+                    reason: e.to_string(),
+                })?
         } else if content.trim_start().starts_with('{') {
             serde_json::from_str::<Contract>(&content).map_err(|e| SyncError::ParseContract {
                 dep: dep_name.to_string(),
