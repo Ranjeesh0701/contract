@@ -83,6 +83,13 @@ fn test_rust_codegen() {
     assert!(rust_code.contains("#[serde(rename = \"orderId\")]"));
     assert!(rust_code.contains("pub order_id: String,"));
     assert!(rust_code.contains("pub notes: Option<String>,"));
+
+    // Verify service trait & client generation
+    assert!(rust_code.contains("pub trait OrderService {"));
+    assert!(rust_code.contains("fn get_order(&self, input: String) -> Result<Order, Box<dyn std::error::Error + Send + Sync>>;"));
+    assert!(rust_code.contains("pub struct OrderServiceClient {"));
+    assert!(rust_code.contains("pub struct ShopContractClient {"));
+    assert!(rust_code.contains("pub order_service: OrderServiceClient,"));
 }
 
 #[test]

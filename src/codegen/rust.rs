@@ -1,4 +1,4 @@
-use crate::ir::{Contract, EnumType, Record, Type, TypeAlias, TypeDefinition};
+use crate::ir::{Contract, EnumType, Record, Service, Type, TypeAlias, TypeDefinition};
 
 pub struct RustGenerator;
 
@@ -22,7 +22,114 @@ impl RustGenerator {
             out.push('\n');
         }
 
+        for service in &contract.services {
+            Self::generate_service(service, &mut out);
+            out.push('\n');
+        }
+
+        if !contract.services.is_empty() {
+            Self::generate_client_bundle(contract, &mut out);
+        }
+
         out
+    }
+
+    fn generate_service(service: &Service, out: &mut String) {
+        if let Some(ref desc) = service.description {
+            out.push_str(&format!("/// {}\n", desc));
+        }
+        out.push_str(&format!("pub trait {} {{\n", service.name));
+        for op in &service.operations {
+            if let Some(ref desc) = op.description {
+                out.push_str(&format!("    /// {}\n", desc));
+            }
+            let fn_name = Self::to_snake_case(&op.name);
+            let input_param = match &op.input {
+                Some(ty) => format!(", input: {}", Self::type_to_rust(ty)),
+                None => "".to_string(),
+            };
+            let ret_type = match &op.output {
+                Some(ty) => format!(
+                    "Result<{}, Box<dyn std::error::Error + Send + Sync>>",
+                    Self::type_to_rust(ty)
+                ),
+                None => "Result<(), Box<dyn std::error::Error + Send + Sync>>".to_string(),
+            };
+            out.push_str(&format!(
+                "    fn {}(&self{}) -> {};\n",
+                fn_name, input_param, ret_type
+            ));
+        }
+        out.push_str("}\n\n");
+
+        let client_struct = format!("{}Client", service.name);
+        out.push_str("#[derive(Debug, Clone)]\n");
+        out.push_str(&format!("pub struct {} {{\n", client_struct));
+        out.push_str("    pub base_url: String,\n");
+        out.push_str("}\n\n");
+
+        out.push_str(&format!("impl {} {{\n", client_struct));
+        out.push_str("    pub fn new(base_url: impl Into<String>) -> Self {\n");
+        out.push_str("        Self {\n");
+        out.push_str("            base_url: base_url.into(),\n");
+        out.push_str("        }\n");
+        out.push_str("    }\n");
+
+        for op in &service.operations {
+            out.push('\n');
+            if let Some(ref desc) = op.description {
+                out.push_str(&format!("    /// {}\n", desc));
+            }
+            let fn_name = Self::to_snake_case(&op.name);
+            let input_param = match &op.input {
+                Some(ty) => format!(", _input: {}", Self::type_to_rust(ty)),
+                None => "".to_string(),
+            };
+            let ret_type = match &op.output {
+                Some(ty) => format!(
+                    "Result<{}, Box<dyn std::error::Error + Send + Sync>>",
+                    Self::type_to_rust(ty)
+                ),
+                None => "Result<(), Box<dyn std::error::Error + Send + Sync>>".to_string(),
+            };
+            out.push_str(&format!(
+                "    pub fn {}(&self{}) -> {} {{\n",
+                fn_name, input_param, ret_type
+            ));
+            out.push_str(&format!(
+                "        // Endpoint: {}/{}\n",
+                service.name, op.name
+            ));
+            out.push_str("        todo!(\"Implement RPC transport call\")\n");
+            out.push_str("    }\n");
+        }
+        out.push_str("}\n");
+    }
+
+    fn generate_client_bundle(contract: &Contract, out: &mut String) {
+        let bundle_name = format!("{}Client", contract.name);
+        out.push_str("#[derive(Debug, Clone)]\n");
+        out.push_str(&format!("pub struct {} {{\n", bundle_name));
+        for service in &contract.services {
+            let field_name = Self::to_snake_case(&service.name);
+            out.push_str(&format!("    pub {}: {}Client,\n", field_name, service.name));
+        }
+        out.push_str("}\n\n");
+
+        out.push_str(&format!("impl {} {{\n", bundle_name));
+        out.push_str("    pub fn new(base_url: impl Into<String>) -> Self {\n");
+        out.push_str("        let url = base_url.into();\n");
+        out.push_str("        Self {\n");
+        for service in &contract.services {
+            let field_name = Self::to_snake_case(&service.name);
+            out.push_str(&format!(
+                "            {}: {}Client::new(url.clone()),\n",
+                field_name, service.name
+            ));
+        }
+        out.push_str("        }\n");
+        out.push_str("    }\n");
+        out.push_str("}\n");
     }
 
     fn generate_record(rec: &Record, out: &mut String) {
