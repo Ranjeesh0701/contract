@@ -107,6 +107,16 @@ enum Commands {
         #[arg(long, default_value_t = false)]
         verify_only: bool,
     },
+    Changelog {
+        old: PathBuf,
+        new: PathBuf,
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        #[arg(short, long)]
+        title: Option<String>,
+        #[arg(long, default_value_t = true)]
+        summary: bool,
+    },
 }
 
 fn main() {
@@ -151,6 +161,13 @@ fn main() {
             output,
             verify_only,
         } => handle_unpack(bundle, output, verify_only),
+        Commands::Changelog {
+            old,
+            new,
+            output,
+            title,
+            summary,
+        } => handle_changelog(old, new, output, title, summary),
     }
 }
 
@@ -335,6 +352,44 @@ fn handle_diff(
 
     if breaking_count > 0 && fail_on_breaking {
         exit(1);
+    }
+}
+
+fn handle_changelog(
+    old_path: PathBuf,
+    new_path: PathBuf,
+    output: Option<PathBuf>,
+    title: Option<String>,
+    summary: bool,
+) {
+    let old_contract = read_contract(&old_path);
+    let new_contract = read_contract(&new_path);
+
+    let opts = contract::diff::ChangelogOptions {
+        title,
+        include_summary: summary,
+    };
+
+    let md = contract::diff::generate_changelog(&old_contract, &new_contract, Some(opts));
+
+    match output {
+        Some(out_path) => {
+            if let Err(e) = fs::write(&out_path, &md) {
+                eprintln!(
+                    "✖ Error writing changelog to '{}': {}",
+                    out_path.display(),
+                    e
+                );
+                exit(1);
+            }
+            println!(
+                "✔ Successfully generated changelog to '{}'",
+                out_path.display()
+            );
+        }
+        None => {
+            print!("{}", md);
+        }
     }
 }
 
