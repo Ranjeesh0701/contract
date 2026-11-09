@@ -64,6 +64,7 @@ fn sample_contract() -> Contract {
                 deprecated: None,
             }],
         }],
+        imports: Vec::new(),
     }
 }
 
@@ -139,6 +140,7 @@ fn test_python_codegen_selective_imports() {
             deprecated: None,
         })],
         services: vec![],
+        imports: Vec::new(),
     };
 
     let py_code = PythonGenerator::generate(&contract);
@@ -179,6 +181,7 @@ fn test_codegen_deprecation_tags_across_all_languages() {
                 deprecated: Some("Use NewCall instead".to_string()),
             }],
         }],
+        imports: Vec::new(),
     };
 
     let ts = TypeScriptGenerator::generate(&contract);

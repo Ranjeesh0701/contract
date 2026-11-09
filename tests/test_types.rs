@@ -145,6 +145,7 @@ fn test_valid_contract_with_forward_reference_and_service() {
                 deprecated: None,
             }],
         }],
+        imports: Vec::new(),
     };
 
     assert!(contract.validate().is_ok());
@@ -174,6 +175,7 @@ fn test_contract_unresolved_reference() {
             deprecated: None,
         })],
         services: vec![],
+        imports: Vec::new(),
     };
 
     let result = contract.validate();
@@ -212,6 +214,7 @@ fn test_contract_duplicate_variant() {
             deprecated: None,
         })],
         services: vec![],
+        imports: Vec::new(),
     };
 
     let result = contract.validate();

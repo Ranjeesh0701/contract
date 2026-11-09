@@ -247,6 +247,7 @@ impl<'a> ProtoParser<'a> {
             description: Some("Protobuf service contract".to_string()),
             types,
             services,
+            imports: Vec::new(),
         })
     }
 

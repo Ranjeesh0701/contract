@@ -3,6 +3,13 @@ use crate::ir::{Contract, EnumType, Record, Service, Type, TypeAlias, TypeDefini
 pub fn to_dsl(contract: &Contract) -> String {
     let mut out = String::new();
 
+    for import_path in &contract.imports {
+        out.push_str(&format!("import \"{}\";\n", import_path));
+    }
+    if !contract.imports.is_empty() {
+        out.push('\n');
+    }
+
     out.push_str(&format!("contract {} {{\n", contract.name));
     out.push_str(&format!("    version: \"{}\"\n", contract.version));
     if let Some(ref desc) = contract.description {

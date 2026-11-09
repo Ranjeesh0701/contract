@@ -179,6 +179,7 @@ pub fn from_openapi_json(json_str: &str) -> Result<Contract, OpenApiError> {
         description,
         types,
         services,
+        imports: Vec::new(),
     })
 }
 

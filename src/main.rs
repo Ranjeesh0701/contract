@@ -146,10 +146,10 @@ fn read_contract(path: &PathBuf) -> Contract {
         || !content.trim_start().starts_with('{');
 
     if is_dsl {
-        match contract::parser::parse(&content) {
+        match contract::parser::resolve_contract_file(path) {
             Ok(contract) => contract,
             Err(e) => {
-                eprintln!("Error parsing contract DSL '{}': {}", path.display(), e);
+                eprintln!("Error resolving contract DSL '{}': {}", path.display(), e);
                 exit(1);
             }
         }

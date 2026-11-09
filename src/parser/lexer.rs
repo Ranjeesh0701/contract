@@ -8,6 +8,7 @@ pub enum Token {
     Record,
     Service,
     TypeAlias,
+    Import,
 
     Ident(String),
     StringLit(String),
@@ -202,6 +203,7 @@ impl<'a> Lexer<'a> {
                         "record" => Token::Record,
                         "service" => Token::Service,
                         "type" => Token::TypeAlias,
+                        "import" => Token::Import,
                         _ => Token::Ident(ident.to_string()),
                     };
                     tokens.push((tok, start_line, start_col));

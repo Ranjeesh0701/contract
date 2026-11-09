@@ -45,6 +45,7 @@ fn create_base_contract() -> Contract {
             }),
         ],
         services: vec![],
+        imports: Vec::new(),
     }
 }
 

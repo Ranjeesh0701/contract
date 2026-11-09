@@ -155,6 +155,23 @@ impl Parser {
     }
 
     pub fn parse_contract(&mut self) -> Result<Contract, ParseError> {
+        let mut imports = Vec::new();
+        loop {
+            while matches!(self.peek().0, Token::Semicolon | Token::Comma) {
+                self.bump();
+            }
+            if matches!(self.peek().0, Token::Import) {
+                self.bump();
+                let path = self.expect_string()?;
+                if matches!(self.peek().0, Token::Semicolon) {
+                    self.bump();
+                }
+                imports.push(path);
+                continue;
+            }
+            break;
+        }
+
         let mut name = "UntitledContract".to_string();
         let mut version = "1.0.0".to_string();
         let (top_doc, top_dep) = self.parse_attributes_and_doc()?;
@@ -181,6 +198,14 @@ impl Parser {
                     break;
                 }
                 match tok.clone() {
+                    Token::Import => {
+                        self.bump();
+                        let path = self.expect_string()?;
+                        if matches!(self.peek().0, Token::Semicolon) {
+                            self.bump();
+                        }
+                        imports.push(path);
+                    }
                     Token::Model | Token::Record => {
                         self.bump();
                         let record = self.parse_record(item_doc, item_dep)?;
@@ -237,6 +262,14 @@ impl Parser {
                 break;
             }
             match tok.clone() {
+                Token::Import => {
+                    self.bump();
+                    let path = self.expect_string()?;
+                    if matches!(self.peek().0, Token::Semicolon) {
+                        self.bump();
+                    }
+                    imports.push(path);
+                }
                 Token::Model | Token::Record => {
                     self.bump();
                     let record = self.parse_record(item_doc, item_dep)?;
@@ -260,7 +293,7 @@ impl Parser {
                 _ => {
                     let (t, line, col) = self.peek().clone();
                     return Err(ParseError::UnexpectedToken {
-                        expected: "model, enum, type, or service declaration".to_string(),
+                        expected: "model, enum, type, service, or import declaration".to_string(),
                         found: t,
                         line,
                         col,
@@ -276,6 +309,7 @@ impl Parser {
             description,
             types,
             services,
+            imports,
         })
     }
 

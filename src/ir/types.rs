@@ -178,6 +178,8 @@ pub struct Contract {
     pub types: Vec<TypeDefinition>,
     #[serde(default)]
     pub services: Vec<Service>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub imports: Vec<String>,
 }
 
 impl Contract {

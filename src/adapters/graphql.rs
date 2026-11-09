@@ -246,6 +246,7 @@ impl<'a> GraphQLParser<'a> {
             description: Some("Ingested from GraphQL SDL".to_string()),
             types,
             services,
+            imports: Vec::new(),
         })
     }
 

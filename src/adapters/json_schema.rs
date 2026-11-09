@@ -67,6 +67,7 @@ pub fn from_json_schema(json_str: &str) -> Result<Contract, AdapterError> {
         description,
         types,
         services: Vec::new(),
+        imports: Vec::new(),
     })
 }
 
