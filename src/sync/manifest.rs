@@ -22,16 +22,18 @@ pub struct ProjectConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DependencySource {
+    Git {
+        git: String,
+        path: String,
+        branch: Option<String>,
+        tag: Option<String>,
+        rev: Option<String>,
+    },
     Path {
         path: String,
     },
     Url {
         url: String,
-    },
-    Git {
-        git: String,
-        path: String,
-        branch: Option<String>,
     },
 }
 

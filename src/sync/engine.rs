@@ -31,6 +31,8 @@ pub enum SyncError {
     UnknownContract(String),
     #[error("Unsupported target language '{0}'")]
     UnsupportedLanguage(String),
+    #[error("Failed to fetch remote dependency '{dep}': {reason}")]
+    FetchRemote { dep: String, reason: String },
 }
 
 #[derive(Debug, Clone)]
@@ -278,12 +280,26 @@ impl SyncEngine {
                 (text, format!("path:{}", path), Some(full_path))
             }
             DependencySource::Url { url } => {
-                // For file/local simulation or HTTP
-                (String::new(), format!("url:{}", url), None)
+                let (text, desc, path) = Self::fetch_url(base_dir, dep_name, url)?;
+                (text, desc, Some(path))
             }
-            DependencySource::Git { git, path, branch } => {
-                let b = branch.as_deref().unwrap_or("main");
-                (String::new(), format!("git:{}#{}:{}", git, b, path), None)
+            DependencySource::Git {
+                git,
+                path,
+                branch,
+                tag,
+                rev,
+            } => {
+                let (text, desc, file_path) = Self::fetch_git(
+                    base_dir,
+                    dep_name,
+                    git,
+                    path,
+                    branch.as_deref(),
+                    tag.as_deref(),
+                    rev.as_deref(),
+                )?;
+                (text, desc, Some(file_path))
             }
         };
 
@@ -321,5 +337,175 @@ impl SyncEngine {
         }
 
         Ok((contract, sha256, desc))
+    }
+
+    fn fetch_git(
+        base_dir: &Path,
+        dep_name: &str,
+        git_url: &str,
+        contract_subpath: &str,
+        branch: Option<&str>,
+        tag: Option<&str>,
+        rev: Option<&str>,
+    ) -> Result<(String, String, PathBuf), SyncError> {
+        let mut hasher = Sha256::new();
+        hasher.update(git_url.as_bytes());
+        let repo_hash = format!("{:x}", hasher.finalize());
+
+        let cache_git_dir = base_dir.join(".contract").join("cache").join("git");
+        let repo_dir = cache_git_dir.join(&repo_hash[..16]);
+
+        let target_ref = rev.or(tag).or(branch).unwrap_or("HEAD");
+
+        if !repo_dir.exists() {
+            fs::create_dir_all(&cache_git_dir)
+                .map_err(|e| SyncError::Io(cache_git_dir.clone(), e))?;
+
+            let mut clone_cmd = std::process::Command::new("git");
+            clone_cmd.args(["clone", "--quiet"]);
+            if let Some(b) = branch {
+                clone_cmd.args(["--branch", b, "--depth", "1"]);
+            }
+            clone_cmd.arg(git_url).arg(&repo_dir);
+
+            let status = clone_cmd.status().map_err(|e| SyncError::FetchRemote {
+                dep: dep_name.to_string(),
+                reason: format!("Failed to execute 'git clone': {}", e),
+            })?;
+
+            if !status.success() {
+                let fallback = std::process::Command::new("git")
+                    .args(["clone", "--quiet", git_url])
+                    .arg(&repo_dir)
+                    .status()
+                    .map_err(|e| SyncError::FetchRemote {
+                        dep: dep_name.to_string(),
+                        reason: format!("Failed to execute fallback 'git clone': {}", e),
+                    })?;
+
+                if !fallback.success() {
+                    return Err(SyncError::FetchRemote {
+                        dep: dep_name.to_string(),
+                        reason: format!("'git clone' exited with status {}", fallback),
+                    });
+                }
+            }
+        } else {
+            let _ = std::process::Command::new("git")
+                .current_dir(&repo_dir)
+                .args(["fetch", "--quiet"])
+                .status();
+        }
+
+        if target_ref != "HEAD" {
+            let co = std::process::Command::new("git")
+                .current_dir(&repo_dir)
+                .args(["checkout", "--quiet", target_ref])
+                .status()
+                .map_err(|e| SyncError::FetchRemote {
+                    dep: dep_name.to_string(),
+                    reason: format!("Failed to checkout '{}': {}", target_ref, e),
+                })?;
+
+            if !co.success() {
+                return Err(SyncError::FetchRemote {
+                    dep: dep_name.to_string(),
+                    reason: format!("'git checkout {}' failed with status {}", target_ref, co),
+                });
+            }
+        }
+
+        let full_path = repo_dir.join(contract_subpath);
+        if !full_path.exists() {
+            return Err(SyncError::FetchRemote {
+                dep: dep_name.to_string(),
+                reason: format!(
+                    "Contract file '{}' not found in git repository '{}' at ref '{}'",
+                    contract_subpath, git_url, target_ref
+                ),
+            });
+        }
+
+        let content = fs::read_to_string(&full_path)
+            .map_err(|e| SyncError::Io(full_path.clone(), e))?;
+
+        let desc = format!("git:{}#{}:{}", git_url, target_ref, contract_subpath);
+        Ok((content, desc, full_path))
+    }
+
+    fn fetch_url(
+        base_dir: &Path,
+        dep_name: &str,
+        url_str: &str,
+    ) -> Result<(String, String, PathBuf), SyncError> {
+        let (content, derived_path) = if let Some(stripped) = url_str.strip_prefix("file://") {
+            let file_path = PathBuf::from(stripped);
+            let full_path = if file_path.is_relative() {
+                base_dir.join(&file_path)
+            } else {
+                file_path
+            };
+            let text = fs::read_to_string(&full_path)
+                .map_err(|e| SyncError::Io(full_path.clone(), e))?;
+            (text, full_path)
+        } else if url_str.starts_with("http://") || url_str.starts_with("https://") {
+            let mut hasher = Sha256::new();
+            hasher.update(url_str.as_bytes());
+            let url_hash = format!("{:x}", hasher.finalize());
+
+            let cache_url_dir = base_dir.join(".contract").join("cache").join("urls");
+            fs::create_dir_all(&cache_url_dir)
+                .map_err(|e| SyncError::Io(cache_url_dir.clone(), e))?;
+
+            let filename = url_str
+                .split('?')
+                .next()
+                .unwrap_or(url_str)
+                .rsplit('/')
+                .next()
+                .unwrap_or("contract.contract");
+            let cache_file = cache_url_dir.join(format!("{}-{}", &url_hash[..8], filename));
+
+            let curl_out = std::process::Command::new("curl")
+                .args(["-fsSL", url_str])
+                .output();
+
+            let text = match curl_out {
+                Ok(out) if out.status.success() => {
+                    let s = String::from_utf8(out.stdout).map_err(|e| {
+                        SyncError::FetchRemote {
+                            dep: dep_name.to_string(),
+                            reason: format!("URL returned non-UTF8 response: {}", e),
+                        }
+                    })?;
+                    let _ = fs::write(&cache_file, &s);
+                    s
+                }
+                _ => {
+                    if cache_file.exists() {
+                        fs::read_to_string(&cache_file)
+                            .map_err(|e| SyncError::Io(cache_file.clone(), e))?
+                    } else {
+                        return Err(SyncError::FetchRemote {
+                            dep: dep_name.to_string(),
+                            reason: format!(
+                                "Failed to fetch URL '{}' and no cached copy found",
+                                url_str
+                            ),
+                        });
+                    }
+                }
+            };
+
+            (text, cache_file)
+        } else {
+            return Err(SyncError::FetchRemote {
+                dep: dep_name.to_string(),
+                reason: format!("Unsupported URL scheme in '{}'", url_str),
+            });
+        };
+
+        let desc = format!("url:{}", url_str);
+        Ok((content, desc, derived_path))
     }
 }

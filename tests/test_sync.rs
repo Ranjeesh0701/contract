@@ -1,6 +1,6 @@
 use contract::sync::{DriftStatus, SyncEngine};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 fn setup_temp_workspace() -> PathBuf {
     let dir = std::env::temp_dir().join(format!("contract_sync_test_{}", std::process::id()));
@@ -90,6 +90,139 @@ fn test_sync_and_drift_detection() {
     }
 
     let _ = fs::remove_dir_all(temp_dir);
+}
+
+#[test]
+fn test_sync_with_url_file_dependency() {
+    let temp_dir = std::env::temp_dir().join(format!(
+        "contract_sync_url_test_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    fs::create_dir_all(&temp_dir).unwrap();
+
+    let remote_schema = r#"
+    contract ExternalApi {
+        version: "1.0.0"
+    }
+    model Health {
+        status: String
+    }
+    "#;
+    let schema_file = temp_dir.join("external.contract");
+    fs::write(&schema_file, remote_schema).unwrap();
+
+    let manifest_content = format!(
+        r#"
+    [project]
+    name = "url-consumer"
+
+    [dependencies]
+    external = {{ url = "file://{}" }}
+
+    [[generate]]
+    contract = "external"
+    lang = "ts"
+    out = "sdk/external.ts"
+    "#,
+        schema_file.display()
+    );
+    let manifest_path = temp_dir.join("contract.toml");
+    fs::write(&manifest_path, manifest_content).unwrap();
+
+    let report = SyncEngine::sync(&temp_dir, false).expect("Sync should succeed for url dependency");
+    assert_eq!(report.synced_contracts.len(), 1);
+    assert_eq!(report.generated_files.len(), 1);
+
+    let lockfile = contract::sync::Lockfile::load_from_file(temp_dir.join("contract.lock")).unwrap();
+    let locked = lockfile.contracts.get("external").expect("External should be locked");
+    assert!(locked.source.starts_with("url:file://"));
+
+    let _ = fs::remove_dir_all(temp_dir);
+}
+
+#[test]
+fn test_sync_with_git_dependency() {
+    let base_temp = std::env::temp_dir().join(format!(
+        "contract_sync_git_test_{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let git_repo_dir = base_temp.join("remote-repo");
+    let consumer_dir = base_temp.join("consumer-app");
+
+    fs::create_dir_all(&git_repo_dir).unwrap();
+    fs::create_dir_all(&consumer_dir).unwrap();
+
+    // 1. Initialize local git repository
+    let run_git = |args: &[&str], dir: &Path| {
+        let status = std::process::Command::new("git")
+            .current_dir(dir)
+            .args(args)
+            .status()
+            .expect("Git command should execute");
+        assert!(status.success(), "Git command {:?} failed", args);
+    };
+
+    run_git(&["init", "-b", "main"], &git_repo_dir);
+    run_git(&["config", "user.name", "Contract Test"], &git_repo_dir);
+    run_git(&["config", "user.email", "test@contract.dev"], &git_repo_dir);
+
+    let contract_dsl = r#"
+    contract InventoryService {
+        version: "1.0.0"
+    }
+
+    model StockItem {
+        sku: String
+        quantity: Int64
+    }
+    "#;
+    fs::write(git_repo_dir.join("inventory.contract"), contract_dsl).unwrap();
+    run_git(&["add", "inventory.contract"], &git_repo_dir);
+    run_git(&["commit", "-m", "Initial commit"], &git_repo_dir);
+
+    // 2. Configure consumer contract.toml pointing to local git repo
+    let manifest_content = format!(
+        r#"
+    [project]
+    name = "inventory-consumer"
+
+    [dependencies]
+    inventory = {{ git = "{}", path = "inventory.contract", branch = "main" }}
+
+    [[generate]]
+    contract = "inventory"
+    lang = "ts"
+    out = "src/inventory.ts"
+    "#,
+        git_repo_dir.display()
+    );
+    fs::write(consumer_dir.join("contract.toml"), manifest_content).unwrap();
+
+    // 3. Sync from git
+    let report = SyncEngine::sync(&consumer_dir, false).expect("Sync should succeed for git dependency");
+    assert_eq!(report.synced_contracts.len(), 1);
+    assert_eq!(report.generated_files.len(), 1);
+
+    let generated_code = fs::read_to_string(consumer_dir.join("src/inventory.ts")).unwrap();
+    assert!(generated_code.contains("export interface StockItem"));
+
+    let lockfile = contract::sync::Lockfile::load_from_file(consumer_dir.join("contract.lock")).unwrap();
+    let locked = lockfile.contracts.get("inventory").expect("Inventory should be locked");
+    assert!(locked.source.starts_with("git:"));
+    assert!(locked.source.contains("inventory.contract"));
+
+    // 4. Check drift: initially UpToDate
+    let drift_reports = SyncEngine::check_drift(&consumer_dir).unwrap();
+    assert_eq!(drift_reports.len(), 1);
+    assert!(matches!(drift_reports[0].status, contract::sync::DriftStatus::UpToDate));
+
+    let _ = fs::remove_dir_all(base_temp);
 }
 
 #[test]
