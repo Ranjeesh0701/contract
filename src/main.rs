@@ -32,51 +32,45 @@ enum TargetLang {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Validate a contract definition for syntactic and semantic correctness
     Check {
-        /// Path to contract file (.contract, .json, or OpenAPI)
         file: PathBuf,
     },
-    /// Compare two versions of a contract and detect breaking changes
     Diff {
-        /// Base/Old contract file
         old: PathBuf,
-        /// New contract file
         new: PathBuf,
-        /// Exit with non-zero code if breaking changes are detected
         #[arg(long, default_value_t = false)]
         fail_on_breaking: bool,
     },
-    /// Generate idiomatic client/server code from a contract
     Generate {
-        /// Path to contract file
         #[arg(short, long)]
         input: PathBuf,
 
-        /// Target language
         #[arg(short, long, value_enum)]
         lang: TargetLang,
 
-        /// Output file path (prints to stdout if omitted)
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
-    /// Import an existing schema (OpenAPI, Protobuf, GraphQL, JSON Schema) and convert it into a .contract schema
     Import {
-        /// Path to schema document (.json, .proto, .graphql, or OpenAPI document)
         input: PathBuf,
 
-        /// Output .contract file (prints to stdout if omitted)
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
-    /// Synchronize external contract dependencies and regenerate client code
+    Export {
+        #[arg(short, long)]
+        input: PathBuf,
+
+        #[arg(short, long, default_value = "openapi")]
+        format: String,
+
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
     Sync {
-        /// Force synchronization even if upstream contains breaking changes
         #[arg(long, default_value_t = false)]
         force: bool,
     },
-    /// Check if local contracts have drifted from upstream service definitions
     Drift,
 }
 
@@ -96,6 +90,11 @@ fn main() {
             output,
         } => handle_generate(input, lang, output),
         Commands::Import { input, output } => handle_import(input, output),
+        Commands::Export {
+            input,
+            format,
+            output,
+        } => handle_export(input, format, output),
         Commands::Sync { force } => handle_sync(force),
         Commands::Drift => handle_drift(),
     }
@@ -307,6 +306,54 @@ fn handle_import(input: PathBuf, output: Option<PathBuf>) {
     }
 }
 
+fn handle_export(input: PathBuf, format: String, output: Option<PathBuf>) {
+    let contract = read_contract(&input);
+
+    if let Err(errors) = contract.validate() {
+        eprintln!(
+            "✖ Cannot export: contract has {} validation error(s):",
+            errors.len()
+        );
+        for err in errors {
+            eprintln!("  - {}", err);
+        }
+        exit(1);
+    }
+
+    let exported = match format.to_lowercase().as_str() {
+        "openapi" | "swagger" | "oas" => match contract::adapters::to_openapi_json(&contract) {
+            Ok(json) => json,
+            Err(e) => {
+                eprintln!("Error exporting to OpenAPI: {}", e);
+                exit(1);
+            }
+        },
+        other => {
+            eprintln!(
+                "✖ Unsupported export format '{}'. Supported: 'openapi'",
+                other
+            );
+            exit(1);
+        }
+    };
+
+    match output {
+        Some(out_path) => {
+            if let Err(e) = fs::write(&out_path, exported) {
+                eprintln!("Error writing output file '{}': {}", out_path.display(), e);
+                exit(1);
+            }
+            println!(
+                "✔ Successfully exported contract to '{}'",
+                out_path.display()
+            );
+        }
+        None => {
+            println!("{}", exported);
+        }
+    }
+}
+
 fn handle_sync(force: bool) {
     let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
 
@@ -388,7 +435,10 @@ fn handle_drift() {
     for ar in &artifact_reports {
         match &ar.status {
             contract::sync::ArtifactDriftStatus::UpToDate => {
-                println!("✔ Artifact '{}' is intact and matches lockfile.", ar.target.out);
+                println!(
+                    "✔ Artifact '{}' is intact and matches lockfile.",
+                    ar.target.out
+                );
             }
             contract::sync::ArtifactDriftStatus::MissingOnDisk => {
                 has_breaking = true;
@@ -398,7 +448,10 @@ fn handle_drift() {
                     ar.target.out
                 );
             }
-            contract::sync::ArtifactDriftStatus::Modified { expected_sha256: _, actual_sha256: _ } => {
+            contract::sync::ArtifactDriftStatus::Modified {
+                expected_sha256: _,
+                actual_sha256: _,
+            } => {
                 has_breaking = true;
                 has_drift = true;
                 eprintln!(
