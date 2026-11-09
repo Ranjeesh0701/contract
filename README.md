@@ -9,7 +9,7 @@
 
 Contract is a high-performance API contract platform and zero-drift synchronization engine built in 100% native Rust. It connects services, frontend apps, and autonomous AI agents through a single, deterministic source of truth—eliminating runtime type errors, broken integrations, and token-wasting AI debugging loops.
 
-> **Project status:** v0.1.1 (Active development).
+> **Project status:** v0.2.0 (Active development).
 
 ---
 
@@ -235,7 +235,7 @@ Embed Contract directly into your custom developer tooling or CI pipelines:
 
 ```toml
 [dependencies]
-contract = "0.1.1"
+contract = "0.2.0"
 ```
 
 ```rust

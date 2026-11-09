@@ -1,6 +1,6 @@
 [package]
 name = "contract"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 authors = ["Ranjeesh"]
 description = "Universal API contract language with zero-drift synchronization, multi-language codegen, and AI-agent compatibility"
